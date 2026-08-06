@@ -69,6 +69,10 @@ function typeColor(id) { const t = leaveTypes.find(x => x.id == id); return t ? 
 function typeName(id) { const t = leaveTypes.find(x => x.id == id); return t ? t.name : id; }
 
 // ---- UI utils ----
+// heightAuto:false app-wide — with our min-height:100vh layouts SweetAlert2's
+// default heightAuto leaves the backdrop / body overflow lock after close,
+// freezing the page (e.g. cancelling the logout dialog).
+if (typeof Swal !== 'undefined') Swal = Swal.mixin({ heightAuto: false });
 const showLoader = (show = true) => { document.getElementById('loader').style.display = show ? 'flex' : 'none'; };
 function toast(text) {
   const root = document.getElementById('toast-root');
