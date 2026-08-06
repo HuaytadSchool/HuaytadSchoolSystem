@@ -9,6 +9,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   try {
     showLoader(true);
+    // After an explicit logout, land on the login screen instead of auto
+    // re-authenticating — inside the LINE app liff stays logged in across the
+    // reload, so without this the boot re-auth loops and can hang/error.
+    if (sessionStorage.getItem('loggedOut')) {
+      sessionStorage.removeItem('loggedOut');
+      showView('landing'); showLoader(false); return;
+    }
     if (typeof liff !== 'undefined' && LIFF_ID && !LIFF_ID.includes('YOUR_')) {
       await liff.init({ liffId: LIFF_ID });
       if (!liff.isLoggedIn()) { showView('landing'); showLoader(false); return; }
@@ -143,10 +150,12 @@ window.logout = () => {
     showCancelButton: true, confirmButtonColor: '#2563eb', cancelButtonColor: '#dc2626',
     confirmButtonText: 'ออกจากระบบ', cancelButtonText: 'ยกเลิก'
   }).then((r) => {
-    if (r.isConfirmed) {
-      if (typeof liff !== 'undefined' && liff.isLoggedIn && liff.isLoggedIn()) liff.logout();
-      window.location.reload();
-    }
+    if (!r.isConfirmed) return;
+    sessionStorage.setItem('loggedOut', '1');
+    // Guard: a liff throw here must never block the reload (that was the "hang").
+    try { if (typeof liff !== 'undefined' && liff.isLoggedIn && liff.isLoggedIn()) liff.logout(); }
+    catch (e) { /* ignore */ }
+    window.location.reload();
   });
 };
 

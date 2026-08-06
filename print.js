@@ -185,7 +185,7 @@ function buildLeaveFormHtml(rec, teacher, quotas) {
     : `<div>วันที่ <span style="${line}min-width:35px">&nbsp;</span> / <span style="${line}min-width:50px">&nbsp;</span> / <span style="${line}min-width:55px">&nbsp;</span></div>`;
 
   return `
-  <div style="max-width:720px;margin:0 auto;padding:16px 36px;font-family:'TH Sarabun New','TH SarabunPSK','Sarabun',sans-serif;font-size:16px;color:#000;line-height:1.65">
+  <div style="max-width:720px;min-height:255mm;margin:0 auto;padding:16px 36px;font-family:'TH Sarabun New','TH SarabunPSK','Sarabun',sans-serif;font-size:16px;color:#000;line-height:1.65">
     <div style="text-align:center;font-size:19px;font-weight:700;margin-bottom:12px">แบบใบลาป่วย ลาคลอดบุตร ลากิจส่วนตัว</div>
 
     <div style="text-align:right;margin-bottom:10px;line-height:1.7">
