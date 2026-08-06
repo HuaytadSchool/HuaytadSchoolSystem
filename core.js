@@ -229,15 +229,29 @@ window.pickRangeDay = (id, iso) => {
 };
 
 // ---- API proxy (POST text/plain to avoid GAS CORS preflight) ----
+// 45s timeout so a stalled request (e.g. the POST→googleusercontent redirect
+// hanging under browser Tracking Prevention) surfaces as an error instead of
+// spinning the loader forever.
 const api = new Proxy({}, {
   get: (_t, funcName) => async (...args) => {
-    const res = await fetch(GAS_WEB_APP_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: funcName, args })
-    });
-    const result = await res.json();
-    if (!result.success) throw new Error(result.error);
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 45000);
+    let res;
+    try {
+      res = await fetch(GAS_WEB_APP_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: funcName, args }),
+        signal: ctrl.signal
+      });
+    } catch (e) {
+      throw new Error(ctrl.signal.aborted ? 'หมดเวลาเชื่อมต่อเซิร์ฟเวอร์ กรุณาลองใหม่' : (e.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ'));
+    } finally { clearTimeout(t); }
+    const text = await res.text();
+    let result;
+    try { result = JSON.parse(text); }
+    catch (e) { throw new Error('เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง (ตรวจสอบการ deploy / สิทธิ์การเข้าถึง)'); }
+    if (!result.success) throw new Error(result.error || 'เกิดข้อผิดพลาดที่เซิร์ฟเวอร์');
     return result.data;
   }
 });
