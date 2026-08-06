@@ -2,14 +2,14 @@
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  font-family: 'Sarabun', system-ui, sans-serif;
+  font-family: 'TH Sarabun New', 'TH SarabunPSK', 'Sarabun', system-ui, sans-serif;
   background: #f8fafc;
   color: #0f172a;
 }
 ::selection { background: #bfdbfe; }
 a { color: #2563eb; }
 a:hover { color: #1d4ed8; }
-input, textarea, select { font-family: 'Sarabun', system-ui, sans-serif; }
+input, textarea, select { font-family: 'TH Sarabun New', 'TH SarabunPSK', 'Sarabun', system-ui, sans-serif; }
 
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
@@ -86,6 +86,14 @@ input, textarea, select { font-family: 'Sarabun', system-ui, sans-serif; }
 @media (max-width: 420px) {
   .dc-grid4 { grid-template-columns: 1fr !important; }
 }
+
+/* ===== SweetAlert2: equal-width buttons + pop-in animation ===== */
+.swal2-actions { gap: 10px; width: 100%; padding: 0 8px !important; }
+.swal2-actions .swal2-styled { flex: 1; margin: 0 !important; transition: transform .12s ease, filter .12s ease; }
+.swal2-actions .swal2-styled:hover { filter: brightness(1.05); transform: translateY(-1px); }
+.swal2-actions .swal2-styled:active { transform: scale(.96); }
+.swal2-popup { animation: swalPop .28s cubic-bezier(.34,1.56,.64,1); }
+@keyframes swalPop { from { opacity: 0; transform: scale(.9) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
 /* Hide number input spinners */
 input[type="number"]::-webkit-inner-spin-button,

@@ -23,7 +23,7 @@ function approvalCard(r) {
   const range = (from === to ? fmtThai(from) : `${fmtShort(from)} - ${fmtThai(to)}`) + (r.half_day ? ` (${halfDayLabel(r.half_day)})` : '');
   const submittedAt = r.created_at ? _dirFmtTime(r.created_at) : '';
   const attach = r.attachment_url
-    ? `<a href="${esc(r.attachment_url)}" target="_blank" style="color:#2563eb;font-size:11px;display:inline-flex;align-items:center;gap:3px">${svg('paperclip', 11)} เอกสารแนบ</a>`
+    ? `<a href="${esc(r.attachment_url)}" target="_blank" style="color:#fff;background:#f97316;font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;text-decoration:none;display:inline-flex;align-items:center;gap:4px">${svg('paperclip', 11)} เอกสารแนบ</a>`
     : '';
   const CLOCK_PATH = '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>';
   const CAL_PATH   = '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>';

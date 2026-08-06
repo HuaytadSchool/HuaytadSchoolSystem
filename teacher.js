@@ -295,9 +295,10 @@ window.renderStatsTab = () => {
   const types     = Object.values(typeMap).sort((a,b) => b.days - a.days);
   const totalDays = types.reduce((s,t) => s + t.days, 0);
 
-  // quotas
-  const quotas     = _teacherData.quotas || [];
-  const totalQuota = quotas.reduce((s,q) => s + (Number(q.max_days)||0), 0);
+  // quotas (gender-filtered, same as the rights view)
+  const _allowedIds = new Set(availableTypesFor(currentUser.prefix, currentUser.gender).map(t => t.id));
+  const quotas     = (_teacherData.quotas || []).filter(q => _allowedIds.has(q.leave_type_id));
+  const totalQuota = quotas.reduce((s,q) => s + (Number(q.total_quota)||0), 0);
   const remaining  = Math.max(0, totalQuota - totalDays);
   const usedPct    = totalQuota > 0 ? Math.min(100, Math.round(totalDays/totalQuota*100)) : 0;
 

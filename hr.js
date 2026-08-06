@@ -218,7 +218,7 @@ function renderHr() {
           </div>
           <div style="font-size:11.5px;color:#475569;margin-bottom:2px">${range} (${r.total_days} วัน)</div>
           ${submittedAt ? `<div style="font-size:10.5px;color:#94a3b8;margin-bottom:${r.attachment_url ? '4' : '10'}px">${submittedAt}</div>` : ''}
-          ${r.attachment_url ? `<div style="margin-bottom:10px"><a href="${esc(r.attachment_url)}" target="_blank" style="color:#2563eb;font-size:11px;display:inline-flex;align-items:center;gap:3px">${svg('paperclip', 11)} เอกสารแนบ</a></div>` : ''}
+          ${r.attachment_url ? `<div style="margin-bottom:10px"><a href="${esc(r.attachment_url)}" target="_blank" style="color:#fff;background:#f97316;font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;text-decoration:none;display:inline-flex;align-items:center;gap:4px">${svg('paperclip', 11)} เอกสารแนบ</a></div>` : ''}
           <div style="display:flex;gap:8px">
             <div onclick="decideRequest('${esc(r.id)}','approve')" class="dc-hover" style="cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:5px;border:1.5px solid #16a34a;color:#16a34a;padding:7px;border-radius:8px;font-size:12px;font-weight:700">
               ${svg('check', 13)} อนุมัติ
@@ -304,7 +304,7 @@ function renderHr() {
       const from = normDate(r.start_date), to = normDate(r.end_date);
       const range = (from === to ? fmtThai(from) : `${fmtShort(from)} - ${fmtThai(to)}`) + (r.half_day ? ` (${halfDayLabel(r.half_day)})` : '');
       const submittedAt = r.created_at ? _hrFmtTime(r.created_at) : '';
-      const attach = r.attachment_url ? `<a href="${esc(r.attachment_url)}" target="_blank" style="color:#2563eb;font-size:11px;display:inline-flex;align-items:center;gap:3px">${svg('paperclip', 11)} เอกสารแนบ</a>` : '';
+      const attach = r.attachment_url ? `<a href="${esc(r.attachment_url)}" target="_blank" style="color:#fff;background:#f97316;font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;text-decoration:none;display:inline-flex;align-items:center;gap:4px">${svg('paperclip', 11)} เอกสารแนบ</a>` : '';
       return `
         <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(15,23,42,.06)">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">

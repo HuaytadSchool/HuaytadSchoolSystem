@@ -40,6 +40,10 @@ window.openLeaveForm = (editReq) => {
         <div class="dc-label">เหตุผลการลา</div>
         <textarea id="lf-reason" placeholder="ระบุเหตุผลการลา" class="dc-input" style="min-height:70px;resize:vertical">${editing ? esc(editReq.reason || '') : ''}</textarea>
       </div>
+      <div style="margin-bottom:14px">
+        <div class="dc-label">ในระหว่างลาติดต่อข้าพเจ้าได้ที่ (ที่อยู่ / เบอร์ติดต่อ)</div>
+        <input type="text" id="lf-contact" placeholder="ระบุที่อยู่หรือช่องทางติดต่อระหว่างลา" class="dc-input" value="${editing ? esc(editReq.contact || '') : ''}"/>
+      </div>
       <div style="margin-bottom:18px">
         <div class="dc-label">แนบใบรับรองแพทย์ ${editing ? '(แนบใหม่เพื่อแทนที่ไฟล์เดิม)' : '(ถ้ามี)'}</div>
         <input type="file" id="lf-file" class="dc-input" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" style="padding:8px"/>
@@ -135,6 +139,7 @@ window.submitLeaveForm = async () => {
   const from = document.getElementById('lf-from').value;
   const to = document.getElementById('lf-to').value;
   const reason = document.getElementById('lf-reason').value.trim();
+  const contact = (document.getElementById('lf-contact') || {}).value ? document.getElementById('lf-contact').value.trim() : '';
   const days = Number(document.getElementById('lf-days').dataset.days || 0);
   if (!from || !to || parseISO(to) < parseISO(from)) { toast('กรุณาระบุวันที่ให้ถูกต้อง'); return; }
   const dErr = leaveDateError(from);
@@ -142,9 +147,16 @@ window.submitLeaveForm = async () => {
   if (!reason) { toast('กรุณาระบุเหตุผลการลา'); return; }
   if (days <= 0) { toast('จำนวนวันลาต้องมากกว่า 0'); return; }
   const fileEl = document.getElementById('lf-file');
-  if (fileEl.files.length) {
-    const fErr = attachmentError(fileEl.files[0]);
-    if (fErr) { toast(fErr); return; }
+  const file = fileEl.files[0];
+  if (file) {
+    // Images are normalized to JPEG + downscaled below (handles large / empty-MIME
+    // camera captures — Samsung camera returns empty file.type). Only PDFs are
+    // validated up front; the rest is enforced after re-encoding / on the server.
+    const isImg = file.type.startsWith('image/') || /\.(jpe?g|png|webp|heic|heif)$/i.test(file.name);
+    if (!isImg) {
+      const fErr = attachmentError(file);
+      if (fErr) { toast(fErr); return; }
+    }
   }
   const typeObj = leaveTypes.find(t => t.id == type);
   const certDays = typeObj ? Number(typeObj.needs_cert_days) || 0 : 0;
@@ -176,10 +188,10 @@ window.submitLeaveForm = async () => {
   showLoader(true);
   try {
     let fileBase64 = null, fileName = null;
-    if (fileEl.files.length) { fileName = fileEl.files[0].name; fileBase64 = await toBase64(fileEl.files[0]); }
+    if (file) { const att = await processAttachment(file); fileName = att.name; fileBase64 = att.base64; }
     const payload = {
       teacher_id: currentUser.id, leave_type_id: type, start_date: from, end_date: to,
-      total_days: days, reason, half_day, fileBase64, fileName,
+      total_days: days, reason, contact, half_day, fileBase64, fileName,
       photo_url: currentLineProfile ? currentLineProfile.pictureUrl : ''
     };
     if (editId) await api.editLeaveRequest(editId, payload);
@@ -208,3 +220,27 @@ const toBase64 = (file) => new Promise((resolve, reject) => {
   reader.onload = () => resolve(reader.result);
   reader.onerror = reject;
 });
+// Normalize an attachment for upload. Images are decoded, downscaled to
+// IMG_MAX_DIM, and re-encoded as JPEG so oversized / empty-MIME camera captures
+// upload reliably; PDFs pass through untouched. Returns { base64, name }.
+const IMG_MAX_DIM = 1600;
+const processAttachment = (file) => {
+  const isImg = file.type.startsWith('image/') || /\.(jpe?g|png|webp|heic|heif)$/i.test(file.name);
+  if (!isImg) return toBase64(file).then(base64 => ({ base64, name: file.name }));
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, IMG_MAX_DIM / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(img, 0, 0, w, h);
+      const name = (file.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg';
+      resolve({ base64: cv.toDataURL('image/jpeg', 0.85), name });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('ไม่สามารถอ่านไฟล์รูปได้')); };
+    img.src = url;
+  });
+};
