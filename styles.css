@@ -92,7 +92,10 @@ input, textarea, select { font-family: 'TH Sarabun New', 'TH SarabunPSK', 'Sarab
 .swal2-actions .swal2-styled { flex: 1; margin: 0 !important; transition: transform .12s ease, filter .12s ease; }
 .swal2-actions .swal2-styled:hover { filter: brightness(1.05); transform: translateY(-1px); }
 .swal2-actions .swal2-styled:active { transform: scale(.96); }
-.swal2-popup { animation: swalPop .28s cubic-bezier(.34,1.56,.64,1); }
+/* Scope to .swal2-show only — overriding .swal2-popup unconditionally also
+   replaced SweetAlert2's hide animation, so on close the container was never
+   removed and its backdrop lingered as a dim frozen overlay. */
+.swal2-popup.swal2-show { animation: swalPop .28s cubic-bezier(.34,1.56,.64,1); }
 @keyframes swalPop { from { opacity: 0; transform: scale(.9) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
 /* Hide number input spinners */
