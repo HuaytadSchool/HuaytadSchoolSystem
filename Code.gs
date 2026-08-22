@@ -254,7 +254,32 @@ function saveSettings(data) {
   if (data && data.approval_steps) {
     props.setProperty('APPROVAL_STEPS', String(parseInt(data.approval_steps)));
   }
-  return { ok: true };
+  let migratedCount = 0;
+  if (parseInt(data.approval_steps) === 1) {
+    // Auto-approve stranded Pending_Director requests
+    const ss = getSpreadsheet();
+    const reqSheet = ss.getSheetByName('LeaveRequests');
+    const qSheet   = ss.getSheetByName('LeaveQuotas');
+    const rData = reqSheet.getDataRange().getValues();
+    const rHeaders = rData[0];
+    const statusIdx = rHeaders.indexOf('status');
+    for (let i = 1; i < rData.length; i++) {
+      if (rData[i][statusIdx] === 'Pending_Director') {
+        // Reuse updateLeaveStatusAPI logic inline: update status + quota
+        const req = arrayToObject(rHeaders, rData[i]);
+        reqSheet.getRange(i + 1, statusIdx + 1).setValue('Approved');
+        reqSheet.getRange(i + 1, rHeaders.indexOf('comments') + 1).setValue('อนุมัติอัตโนมัติ (ลดขั้นตอนเป็น 1 ขั้น)');
+        // Quota: pending→used
+        applyQuotaDelta(req.teacher_id, req.leave_type_id, {
+          pending:   -Number(req.total_days),
+          used:       Number(req.total_days)
+        });
+        try { notifyTeacherStatusChange(req.teacher_id, 'Approved', 'อนุมัติอัตโนมัติ (ลดขั้นตอนเป็น 1 ขั้น)', req, 'Admin'); } catch(e) { Logger.log('notify failed: ' + e); }
+        migratedCount++;
+      }
+    }
+  }
+  return { ok: true, migrated: migratedCount };
 }
 
 // Create LeaveQuotas rows for a user from every LeaveType (skips existing).
