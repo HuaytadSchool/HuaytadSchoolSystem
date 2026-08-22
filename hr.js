@@ -95,7 +95,7 @@ function renderHr() {
     </div>`;
 
   const hero = `
-    <div style="background:url('https://img2.pic.in.th/BG_User.png') center/cover no-repeat;padding:18px 16px 54px;position:relative;overflow:hidden;color:#fff">
+    <div style="background:url('img/BG_User.png') center/cover no-repeat;padding:18px 16px 54px;position:relative;overflow:hidden;color:#fff">
       <div style="position:absolute;inset:0;background:rgba(15,40,100,0.42)"></div>
       <div style="display:flex;justify-content:flex-end;position:relative;z-index:2">${heroRight}</div>
       ${heroBody}

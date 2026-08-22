@@ -657,7 +657,7 @@ function renderTeacher(quotas, history) {
         <!-- ── Tab: หน้าหลัก ── -->
         <div id="tt-home">
           <!-- Header -->
-          <div style="background:url('https://img2.pic.in.th/BG_User.png') center/cover no-repeat;padding:18px 16px 56px;position:relative;overflow:hidden;color:#fff">
+          <div style="background:url('img/BG_User.png') center/cover no-repeat;padding:18px 16px 56px;position:relative;overflow:hidden;color:#fff">
             <div style="position:absolute;inset:0;background:rgba(15,40,100,0.35)"></div>
             <!-- Header top-right: bell + gear -->
             <div style="display:flex;justify-content:flex-end;gap:8px;position:relative;z-index:2;margin-bottom:14px">

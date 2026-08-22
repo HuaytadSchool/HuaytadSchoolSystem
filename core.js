@@ -4,7 +4,8 @@
 
 const LIFF_ID = "2010662195-iJjI0NIA";
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzDy0a09eV5hou0LRtS81gR5G0tZcURgvfYmEhIm2YlSskbrbcmqg-Yx2zcuJPRirodkw/exec";
-const SCHOOL_LOGO_URL = 'https://img2.pic.in.th/logo-ht.png';
+const SCHOOL_LOGO_URL = 'img/logo-ht.png';
+const USER_BG_URL = 'img/BG_User.png';
 
 // ---- Global state ----
 let currentUser = null;
