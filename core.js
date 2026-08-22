@@ -74,6 +74,35 @@ function positionSelectHtml(id, currentPosition) {
     </div>
   `;
 }
+window.positionSelectHtml = positionSelectHtml;
+
+function togglePositionStanding(id) {
+  const main = (document.getElementById(id + '-pos-main') || {}).value;
+  const standWrap = document.getElementById(id + '-standing-wrap');
+  const otherInput = document.getElementById(id + '-pos-other');
+  if (standWrap) standWrap.style.display = (main === 'ครู') ? 'block' : 'none';
+  if (otherInput) otherInput.style.display = (main === 'อื่นๆ') ? 'block' : 'none';
+}
+window.togglePositionStanding = togglePositionStanding;
+
+function getPositionValue(id) {
+  const main = (document.getElementById(id + '-pos-main') || {}).value || 'ครู';
+  if (main === 'ครู') {
+    const stVal = (document.getElementById(id + '-pos-standing') || {}).value;
+    const stObj = ACADEMIC_STANDINGS.find(x => x.id === stVal);
+    if (stObj && stObj.text) {
+      return `ครู วิทยฐานะครู${stObj.text}`;
+    }
+    return 'ครู';
+  }
+  if (main === 'อื่นๆ') {
+    const o = document.getElementById(id + '-pos-other');
+    return (o ? o.value : '').trim() || 'อื่นๆ';
+  }
+  return main;
+}
+window.getPositionValue = getPositionValue;
+
 // ---- Department / Academic Group Constants ----
 const DEPARTMENTS = [
   'ปฐมวัย',
