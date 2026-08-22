@@ -3,7 +3,7 @@
 // ===========================================================================
 
 const LIFF_ID = "2010662195-iJjI0NIA";
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyrtJ1T3QU0tiuZ6e29h3JPq-pZHWBtBZDSLoH3_qsV7cHQYo-QMfnELi3LHDPDSofeXQ/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwd_swD_1GMPXstBSmasbxtwIK1YZlsQPCBz16PHv6oCX-9KhuY7m0nSImO1XCnOKNKVA/exec";
 const SCHOOL_LOGO_URL = 'img/logo-ht.png';
 const USER_BG_URL = 'img/BG_User.png';
 

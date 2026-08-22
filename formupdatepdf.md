@@ -1,7 +1,7 @@
 # รายงานการอัปเดตแบบฟอร์มใบลาและระบบ PDF (School Leave Management System)
 
 > **โรงเรียนบ้านห้วยตาด** สังกัดสำนักงานเขตพื้นที่การศึกษาประถมศึกษาเลย เขต 1  
-> **GAS Web App URL ล่าสุด**: `https://script.google.com/macros/s/AKfycbyrtJ1T3QU0tiuZ6e29h3JPq-pZHWBtBZDSLoH3_qsV7cHQYo-QMfnELi3LHDPDSofeXQ/exec`  
+> **GAS Web App URL ล่าสุด**: `https://script.google.com/macros/s/AKfycbwd_swD_1GMPXstBSmasbxtwIK1YZlsQPCBz16PHv6oCX-9KhuY7m0nSImO1XCnOKNKVA/exec`  
 > **เอกสารอ้างอิงสำหรับการพัฒนาต่อด้วย AI / Claude**
 
 ---
