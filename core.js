@@ -3,7 +3,7 @@
 // ===========================================================================
 
 const LIFF_ID = "2010662195-iJjI0NIA";
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbydQEjZBy0NHsPLaS9Vm9h1bor2msJQC1NgPqdnmadM-nVdxpiVTofA0yFo8uU1GyXJfw/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzDy0a09eV5hou0LRtS81gR5G0tZcURgvfYmEhIm2YlSskbrbcmqg-Yx2zcuJPRirodkw/exec";
 const SCHOOL_LOGO_URL = 'https://img2.pic.in.th/logo-ht.png';
 
 // ---- Global state ----
@@ -25,6 +25,144 @@ const MALE_PREFIXES = ['นาย', 'ว่าที่ร้อยตรี'];
 const FEMALE_PREFIXES = ['นาง', 'นางสาว', 'ว่าที่ร้อยตรีหญิง'];
 const isMalePrefix = (p) => MALE_PREFIXES.includes(p);
 const isFemalePrefix = (p) => FEMALE_PREFIXES.includes(p);
+
+// ---- Personnel Positions & Academic Standings ----
+const POSITIONS = ['ครู', 'ครูผู้ช่วย', 'ครูอัตราจ้าง', 'เจ้าหน้าที่ธุรการ', 'พี่เลี้ยงเด็กพิการ', 'พนักงานบริการ', 'อื่นๆ'];
+const ACADEMIC_STANDINGS = [
+  { id: 'none', label: 'ไม่มีวิทยฐานะ (ครู คศ.1)', text: '' },
+  { id: 'c2', label: 'ครูชำนาญการ (คศ.2)', text: 'ชำนาญการ' },
+  { id: 'c3', label: 'ครูชำนาญการพิเศษ (คศ.3)', text: 'ชำนาญการพิเศษ' },
+  { id: 'c4', label: 'ครูเชี่ยวชาญ (คศ.4)', text: 'เชี่ยวชาญ' },
+  { id: 'c5', label: 'ครูเชี่ยวชาญพิเศษ (คศ.5)', text: 'เชี่ยวชาญพิเศษ' }
+];
+
+function parsePosition(posStr) {
+  const s = String(posStr || '').trim();
+  if (!s) return { position: 'ครู', standing: 'none', other: '' };
+  if (s.includes('ชำนาญการพิเศษ') || s.includes('คศ.3')) return { position: 'ครู', standing: 'c3', other: '' };
+  if (s.includes('เชี่ยวชาญพิเศษ') || s.includes('คศ.5')) return { position: 'ครู', standing: 'c5', other: '' };
+  if (s.includes('เชี่ยวชาญ') || s.includes('คศ.4')) return { position: 'ครู', standing: 'c4', other: '' };
+  if (s.includes('ชำนาญการ') || s.includes('คศ.2')) return { position: 'ครู', standing: 'c2', other: '' };
+  if (s.includes('ครูผู้ช่วย')) return { position: 'ครูผู้ช่วย', standing: 'none', other: '' };
+  if (s.includes('ครูอัตราจ้าง')) return { position: 'ครูอัตราจ้าง', standing: 'none', other: '' };
+  if (s.includes('ธุรการ')) return { position: 'เจ้าหน้าที่ธุรการ', standing: 'none', other: '' };
+  if (s.includes('พี่เลี้ยง')) return { position: 'พี่เลี้ยงเด็กพิการ', standing: 'none', other: '' };
+  if (s.includes('บริการ') || s.includes('ภารโรง')) return { position: 'พนักงานบริการ', standing: 'none', other: '' };
+  if (s.startsWith('ครู') || s === 'ครู คศ.1') return { position: 'ครู', standing: 'none', other: '' };
+  return { position: 'อื่นๆ', standing: 'none', other: s };
+}
+
+function positionSelectHtml(id, currentPosition) {
+  const parsed = parsePosition(currentPosition);
+  const posOpts = POSITIONS.map(p => `<option value="${p}" ${parsed.position === p ? 'selected' : ''}>${p}</option>`).join('');
+  const standOpts = ACADEMIC_STANDINGS.map(st => `<option value="${st.id}" ${parsed.standing === st.id ? 'selected' : ''}>${st.label}</option>`).join('');
+  const isTeacher = parsed.position === 'ครู';
+  const isOther = parsed.position === 'อื่นๆ';
+
+  return `
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <select id="${id}-pos-main" class="dc-input" onchange="togglePositionStanding('${id}')">
+        ${posOpts}
+      </select>
+      <div id="${id}-standing-wrap" style="display:${isTeacher ? 'block' : 'none'}">
+        <div class="dc-label" style="margin-bottom:3px;font-size:11.5px;color:#64748b">วิทยฐานะ</div>
+        <select id="${id}-pos-standing" class="dc-input">
+          ${standOpts}
+        </select>
+      </div>
+      <input id="${id}-pos-other" class="dc-input" placeholder="ระบุชื่อตำแหน่ง" style="display:${isOther ? 'block' : 'none'}" value="${isOther ? esc(parsed.other) : ''}"/>
+    </div>
+  `;
+}
+// ---- Department / Academic Group Constants ----
+const DEPARTMENTS = [
+  'ปฐมวัย',
+  'ภาษาไทย',
+  'คณิตศาสตร์',
+  'วิทยาศาสตร์และเทคโนโลยี',
+  'สังคมศึกษา ศาสนา และวัฒนธรรม',
+  'สุขศึกษาและพลศึกษา',
+  'ศิลปะ',
+  'การงานอาชีพ',
+  'ภาษาต่างประเทศ',
+  'วิชาการ',
+  'บริหารงานทั่วไป / ธุรการ',
+  'กิจการนักเรียน',
+  'บริหารงบประมาณ',
+  'อื่นๆ'
+];
+
+function departmentSelectHtml(id, currentDept) {
+  const isOther = currentDept && !DEPARTMENTS.includes(currentDept);
+  const selectedDept = isOther ? 'อื่นๆ' : (currentDept || 'ปฐมวัย');
+  const opts = DEPARTMENTS.map(d => {
+    const sel = d === selectedDept ? 'selected' : '';
+    return `<option value="${d}" ${sel}>${d}</option>`;
+  }).join('');
+  return `
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <select id="${id}-dept-select" class="dc-input" onchange="toggleDepartmentOther('${id}')">
+        ${opts}
+      </select>
+      <input id="${id}-dept-other" class="dc-input" placeholder="ระบุกลุ่มสาระ/ฝ่าย" style="display:${isOther ? 'block' : 'none'}" value="${isOther ? esc(currentDept) : ''}"/>
+    </div>
+  `;
+}
+window.departmentSelectHtml = departmentSelectHtml;
+window.toggleDepartmentOther = (id) => {
+  const s = document.getElementById(id + '-dept-select');
+  const other = document.getElementById(id + '-dept-other');
+  if (s && other) other.style.display = s.value === 'อื่นๆ' ? 'block' : 'none';
+};
+window.getDepartmentValue = (id) => {
+  const s = document.getElementById(id + '-dept-select');
+  if (!s) return '';
+  if (s.value === 'อื่นๆ') {
+    const other = document.getElementById(id + '-dept-other');
+    return other ? other.value.trim() || 'อื่นๆ' : 'อื่นๆ';
+  }
+  return s.value;
+};
+
+// Clean and normalize phone number
+function formatPhone(p) {
+  if (p == null || p === '') return '';
+  let s = String(p).trim().replace(/[^0-9]/g, '');
+  if (s.length === 9 && !s.startsWith('0')) s = '0' + s;
+  return s;
+}
+window.formatPhone = formatPhone;
+
+function prefixSelectHtml(id, current) {
+  const isOther = current && !PREFIXES.includes(current);
+  const opts = [...PREFIXES, 'อื่นๆ'].map(p => {
+    const sel = (p === 'อื่นๆ' ? isOther : current === p) ? 'selected' : '';
+    return `<option value="${p}" ${sel}>${p}</option>`;
+  }).join('');
+  return `<div style="display:flex;flex-direction:column;gap:6px">
+    <select id="${id}-prefix" class="dc-input" onchange="togglePrefixOther('${id}')">${opts}</select>
+    <input id="${id}-prefix-other" class="dc-input" placeholder="ระบุคำนำหน้า" style="display:${isOther ? 'block' : 'none'}" value="${isOther ? esc(current) : ''}"/>
+  </div>`;
+}
+window.prefixSelectHtml = prefixSelectHtml;
+window.togglePrefixOther = (id) => {
+  const s = document.getElementById(id + '-prefix');
+  const other = document.getElementById(id + '-prefix-other');
+  if (s && other) other.style.display = s.value === 'อื่นๆ' ? 'block' : 'none';
+  if (s) {
+    const p = s.value;
+    const gEl = document.getElementById(id + '-gender') || document.getElementById('reg-gender');
+    if (gEl) {
+      if (isMalePrefix(p)) gEl.value = 'male';
+      else if (isFemalePrefix(p)) gEl.value = 'female';
+    }
+  }
+};
+window.getPrefix = (id) => {
+  const s = document.getElementById(id + '-prefix');
+  if (!s) return '';
+  return s.value === 'อื่นๆ' ? (document.getElementById(id + '-prefix-other') ? document.getElementById(id + '-prefix-other').value.trim() : '') : s.value;
+};
 
 function availableTypesFor(prefix, gender) {
   const isMale = gender === 'male' || (!gender && isMalePrefix(prefix));

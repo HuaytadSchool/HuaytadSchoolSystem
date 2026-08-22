@@ -1,4 +1,18 @@
 /* ===== Base (ported from Leave Management System.dc.html) ===== */
+@font-face {
+  font-family: 'TH Sarabun New';
+  src: url('https://cdn.jsdelivr.net/gh/lazywasabi/thai-web-fonts@v1.0/fonts/THSarabunNew/THSarabunNew.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/gh/lazywasabi/thai-web-fonts@v1.0/fonts/THSarabunNew/THSarabunNew.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'TH Sarabun New';
+  src: url('https://cdn.jsdelivr.net/gh/lazywasabi/thai-web-fonts@v1.0/fonts/THSarabunNew/THSarabunNew-Bold.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/gh/lazywasabi/thai-web-fonts@v1.0/fonts/THSarabunNew/THSarabunNew-Bold.woff') format('woff');
+  font-weight: bold;
+  font-style: normal;
+}
 * { box-sizing: border-box; }
 body {
   margin: 0;

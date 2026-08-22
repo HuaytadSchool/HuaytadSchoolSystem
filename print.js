@@ -6,6 +6,7 @@ const SCHOOL_NAME = 'โรงเรียนบ้านห้วยตาด';
 // Populated from DB settings at boot (auth.js routeByRole); shared for all users
 let DIRECTOR_NAME  = '';
 let PREPARER_NAME  = '';
+let PREPARER_POSITION = 'ครูโรงเรียนบ้านห้วยตาด';
 
 function leaveKind(name) {
   const n = String(name || '');
@@ -157,14 +158,14 @@ function buildLeaveFormHtml(rec, teacher, quotas) {
 
   // Lookup HR teacher (Level 1 Inspector)
   let hrName = PREPARER_NAME || '';
-  let hrPosition = 'ครูโรงเรียนบ้านห้วยตาด';
+  let hrPosition = PREPARER_POSITION || 'ครูโรงเรียนบ้านห้วยตาด';
   if (rec.approver_l1_id) {
     const hrObj = (window._hrData && Array.isArray(_hrData.teachers))
       ? _hrData.teachers.find(t => String(t.id) === String(rec.approver_l1_id))
       : (window._teacherData && String(teacher.id) === String(rec.approver_l1_id) ? teacher : null);
     if (hrObj) {
       hrName = fullName(hrObj);
-      hrPosition = hrObj.position || 'ครูโรงเรียนบ้านห้วยตาด';
+      hrPosition = hrObj.position || PREPARER_POSITION || 'ครูโรงเรียนบ้านห้วยตาด';
     }
   }
 
@@ -173,22 +174,24 @@ function buildLeaveFormHtml(rec, teacher, quotas) {
   const hrDoc = hrRaw ? parseDocDate({ created_at: hrRaw }) : ((rec.status === 'Pending_Director' || approved) ? doc : null);
   const hrDateStr = hrDoc ? `${hrDoc.getDate()} / ${THAI_MONTHS_FULL[hrDoc.getMonth()]} / ${hrDoc.getFullYear() + 543}` : '';
   const hrDateLineHtml = hrDateStr
-    ? `<div>วันที่ ${fill(hrDateStr, '160px', 'center')}</div>`
-    : `<div>วันที่ <span style="${line}min-width:35px">&nbsp;</span> / <span style="${line}min-width:50px">&nbsp;</span> / <span style="${line}min-width:55px">&nbsp;</span></div>`;
+    ? `<div>วันที่ ${fill(hrDateStr, '150px', 'center')}</div>`
+    : `<div>วันที่ <span style="${line}min-width:35px">&nbsp;</span> / <span style="${line}min-width:45px">&nbsp;</span> / <span style="${line}min-width:50px">&nbsp;</span></div>`;
 
   // Director Approval date
   const dirRaw = rec.approved_at || rec.approved_date || rec.updated_at;
   const dirDoc = dirRaw ? parseDocDate({ created_at: dirRaw }) : (approved ? doc : null);
   const dirDateStr = dirDoc ? `${dirDoc.getDate()} / ${THAI_MONTHS_FULL[dirDoc.getMonth()]} / ${dirDoc.getFullYear() + 543}` : '';
   const dirDateLineHtml = dirDateStr
-    ? `<div>วันที่ ${fill(dirDateStr, '160px', 'center')}</div>`
-    : `<div>วันที่ <span style="${line}min-width:35px">&nbsp;</span> / <span style="${line}min-width:50px">&nbsp;</span> / <span style="${line}min-width:55px">&nbsp;</span></div>`;
+    ? `<div>วันที่ ${fill(dirDateStr, '150px', 'center')}</div>`
+    : `<div>วันที่ <span style="${line}min-width:35px">&nbsp;</span> / <span style="${line}min-width:45px">&nbsp;</span> / <span style="${line}min-width:50px">&nbsp;</span></div>`;
+
+  const contactVal = rec.contact || teacher.address || '';
 
   return `
-  <div style="max-width:720px;min-height:255mm;margin:0 auto;padding:16px 36px;font-family:'TH Sarabun New','TH SarabunPSK','Sarabun',sans-serif;font-size:16px;color:#000;line-height:1.65">
-    <div style="text-align:center;font-size:19px;font-weight:700;margin-bottom:12px">แบบใบลาป่วย ลาคลอดบุตร ลากิจส่วนตัว</div>
+  <div class="leave-form-doc" style="max-width:720px;margin:0 auto;padding:0;font-family:'TH Sarabun New','TH SarabunPSK','Sarabun',sans-serif;font-size:15.5px;color:#000;line-height:1.52">
+    <div style="text-align:center;font-size:19px;font-weight:700;margin-bottom:10px">แบบใบลาป่วย ลาคลอดบุตร ลากิจส่วนตัว</div>
 
-    <div style="text-align:right;margin-bottom:10px;line-height:1.7">
+    <div style="text-align:right;margin-bottom:8px;line-height:1.55">
       <div>เขียนที่ ${fill(SCHOOL_NAME, '220px', 'center')}</div>
       <div>วันที่ ${fill(docDay, '35px', 'center')} เดือน ${fill(docMonth, '110px', 'center')} พ.ศ. ${fill(docYear, '65px', 'center')}</div>
     </div>
@@ -199,36 +202,36 @@ function buildLeaveFormHtml(rec, teacher, quotas) {
     <div style="margin-top:4px">ข้าพเจ้า ${fill(name, '240px', 'left')} ตำแหน่ง ${fill(position, '180px', 'left')}</div>
     <div>สังกัด ${fill(affiliationStr, '520px', 'left')}</div>
 
-    <div style="margin-top:6px;padding-left:40px">
+    <div style="margin-top:6px;padding-left:36px;line-height:1.5">
       <div>ขอลา</div>
-      <div style="padding-left:30px">${parenBox(kind === 'sick')} ป่วย</div>
-      <div style="padding-left:30px">${parenBox(kind === 'personal')} กิจส่วนตัว &nbsp;&nbsp; เนื่องจาก ${fill(kind === 'personal' ? rec.reason : (kind === 'sick' ? rec.reason : ''), '400px', 'left')}</div>
-      <div style="padding-left:30px">${parenBox(kind === 'maternity')} คลอดบุตร</div>
+      <div style="padding-left:24px">${parenBox(kind === 'sick')} ป่วย</div>
+      <div style="padding-left:24px">${parenBox(kind === 'personal')} กิจส่วนตัว &nbsp;&nbsp; เนื่องจาก ${fill(kind === 'personal' ? rec.reason : (kind === 'sick' ? rec.reason : ''), '380px', 'left')}</div>
+      <div style="padding-left:24px">${parenBox(kind === 'maternity')} คลอดบุตร</div>
     </div>
 
-    <div style="margin-top:6px">ตั้งแต่วันที่ ${fill(fmtThaiFullDate(from), '170px', 'center')} ถึงวันที่ ${fill(fmtThaiFullDate(to), '170px', 'center')} มีกำหนด ${fill(rec.total_days, '45px', 'center')} วัน</div>
-    <div>ข้าพเจ้าได้ลา ${parenBox(lastKind === 'sick')} ป่วย ${parenBox(lastKind === 'personal')} กิจส่วนตัว ${parenBox(lastKind === 'maternity')} คลอดบุตร ครั้งสุดท้ายตั้งแต่วันที่ ${fill(lastFromStr, '140px', 'center')} ถึงวันที่ ${fill(lastToStr, '140px', 'center')} มีกำหนด ${fill(lastDaysStr, '45px', 'center')} วัน</div>
-    <div>ในระหว่างลาจะติดต่อข้าพเจ้าได้ที่ ${fill(rec.contact || teacher.address || '', '480px', 'left')}</div>
-    <div>หมายเลขโทรศัพท์ ${fill(rec.phone || teacher.phone || '', '220px', 'left')}</div>
+    <div style="margin-top:6px">ตั้งแต่วันที่ ${fill(fmtThaiFullDate(from), '160px', 'center')} ถึงวันที่ ${fill(fmtThaiFullDate(to), '160px', 'center')} มีกำหนด ${fill(rec.total_days, '40px', 'center')} วัน</div>
+    <div>ข้าพเจ้าได้ลา ${parenBox(lastKind === 'sick')} ป่วย ${parenBox(lastKind === 'personal')} กิจส่วนตัว ${parenBox(lastKind === 'maternity')} คลอดบุตร ครั้งสุดท้ายตั้งแต่วันที่ ${fill(lastFromStr, '140px', 'center')}</div>
+    <div>ถึงวันที่ ${fill(lastToStr, '140px', 'center')} มีกำหนด ${fill(lastDaysStr, '40px', 'center')} วัน ในระหว่างลาจะติดต่อข้าพเจ้าได้ที่ ${fill(contactVal, '220px', 'left')}</div>
+    <div>${fill('', '330px', 'left')} หมายเลขโทรศัพท์ ${fill(rec.phone || teacher.phone || '', '190px', 'left')}</div>
 
-    <div style="margin-top:14px;text-align:right;padding-right:30px">
-      <div style="display:inline-block;text-align:center;line-height:1.7">
-        <div>(ลงชื่อ) <span style="${line}min-width:180px">&nbsp;</span> ผู้ลา</div>
+    <div style="margin-top:10px;text-align:right;padding-right:20px">
+      <div style="display:inline-block;text-align:center;line-height:1.55">
+        <div>(ลงชื่อ) <span style="${line}min-width:170px">&nbsp;</span> ผู้ลา</div>
         <div>( ${esc(name)} )</div>
       </div>
     </div>
 
-    <div style="display:flex;gap:20px;margin-top:16px;align-items:flex-start">
+    <div style="display:flex;gap:18px;margin-top:10px;align-items:flex-start">
       <!-- Left side: Table 1, Inspector, Table 2 -->
       <div style="flex:1.1">
-        <div style="font-weight:700;margin-bottom:4px;font-size:15px">สถิติการลาในปีงบประมาณนี้</div>
-        <table style="border-collapse:collapse;width:100%;font-size:13.5px;line-height:1.3;text-align:center">
+        <div style="font-weight:700;margin-bottom:4px;font-size:14.5px">สถิติการลาในปีงบประมาณนี้</div>
+        <table style="border-collapse:collapse;width:100%;font-size:13.5px;line-height:1.25;text-align:center">
           <thead>
             <tr>
-              <th style="border:1px solid #000;padding:4px;width:30%">ประเภทลา</th>
-              <th style="border:1px solid #000;padding:4px;width:23%">ลามาแล้ว<br>(วันทำการ)</th>
-              <th style="border:1px solid #000;padding:4px;width:23%">ลาครั้งนี้<br>(วันทำการ)</th>
-              <th style="border:1px solid #000;padding:4px;width:24%">รวมเป็น<br>(วันทำการ)</th>
+              <th style="border:1px solid #000;padding:3px 4px;width:30%">ประเภทลา</th>
+              <th style="border:1px solid #000;padding:3px 4px;width:23%">ลามาแล้ว<br>(วันทำการ)</th>
+              <th style="border:1px solid #000;padding:3px 4px;width:23%">ลาครั้งนี้<br>(วันทำการ)</th>
+              <th style="border:1px solid #000;padding:3px 4px;width:24%">รวมเป็น<br>(วันทำการ)</th>
             </tr>
           </thead>
           <tbody>
@@ -238,18 +241,18 @@ function buildLeaveFormHtml(rec, teacher, quotas) {
           </tbody>
         </table>
 
-        <div style="margin-top:12px;text-align:center;font-size:13.5px;line-height:1.7">
+        <div style="margin-top:8px;text-align:center;font-size:13.5px;line-height:1.55">
           <div>(ลงชื่อ) <span style="${line}min-width:140px">&nbsp;</span> ผู้ตรวจ</div>
           <div>( ${hrName ? esc(hrName) : '........................................'} )</div>
           <div>ตำแหน่ง ${fill(hrPosition, '160px', 'center')}</div>
           ${hrDateLineHtml}
         </div>
 
-        <div style="margin-top:14px;border-top:1px dashed #94a3b8;padding-top:8px;font-size:13px">
+        <div style="margin-top:8px;padding-top:4px;font-size:13px">
           <div style="font-weight:700">รับทราบผลการพิจารณาอนุญาตการลาและสถิติการลา</div>
           <div>- ผลการพิจารณา ${parenBox(approved)} อนุญาต ${parenBox(rec.status === 'Rejected')} ไม่อนุญาต</div>
           <div style="font-weight:700;margin-top:4px">สถิติการลา รวมครั้งนี้</div>
-          <table style="border-collapse:collapse;width:100%;font-size:13px;line-height:1.2;text-align:center;margin-top:2px">
+          <table style="border-collapse:collapse;width:100%;font-size:13px;line-height:1.2;text-align:center;margin-top:3px">
             <thead>
               <tr>
                 <th rowspan="2" style="border:1px solid #000;padding:3px;width:50%">ประเภทการลา</th>
@@ -265,7 +268,7 @@ function buildLeaveFormHtml(rec, teacher, quotas) {
               ${statRow2('กิจ', 'กิจ')}
             </tbody>
           </table>
-          <div style="margin-top:10px;text-align:center;line-height:1.6">
+          <div style="margin-top:6px;text-align:center;line-height:1.5">
             <div>(ลงชื่อ) <span style="${line}min-width:150px">&nbsp;</span> ผู้รับทราบ</div>
             <div>( ${esc(name)} )</div>
             <div>ตำแหน่ง ${fill(position, '150px', 'center')}</div>
@@ -275,19 +278,20 @@ function buildLeaveFormHtml(rec, teacher, quotas) {
 
       <!-- Right side: Manager Opinion & Director Order -->
       <div style="flex:1">
-        <div style="font-weight:700;font-size:15px">ความคิดเห็นของผู้บังคับบัญชา</div>
-        <div style="${line}width:100%;margin-top:16px">&nbsp;</div>
-        <div style="margin-top:12px;text-align:center;font-size:13.5px;line-height:1.7">
+        <div style="font-weight:700;font-size:14.5px">ความคิดเห็นของผู้บังคับบัญชา</div>
+        <div style="${line}width:100%;margin-top:14px">&nbsp;</div>
+        <div style="${line}width:100%;margin-top:8px">&nbsp;</div>
+        <div style="margin-top:8px;text-align:center;font-size:13.5px;line-height:1.55">
           <div>(ลงชื่อ) <span style="${line}min-width:140px">&nbsp;</span></div>
           <div>( ${DIRECTOR_NAME ? esc(DIRECTOR_NAME) : 'ผู้อำนวยการโรงเรียนบ้านห้วยตาด'} )</div>
           <div>ตำแหน่ง ผู้อำนวยการโรงเรียนบ้านห้วยตาด</div>
           ${dirDateLineHtml}
         </div>
 
-        <div style="font-weight:700;margin-top:14px;font-size:15px">คำสั่ง</div>
-        <div style="margin-top:4px;font-size:14px">${parenBox(approved)} อนุญาต &nbsp;&nbsp;&nbsp;&nbsp; ${parenBox(rec.status === 'Rejected')} ไม่อนุญาต</div>
-        <div style="${line}width:100%;margin-top:6px">${esc(rec.comments || 'อนุมัติผ่านระบบสารสนเทศการลาอิเล็กทรอนิกส์')}</div>
-        <div style="margin-top:12px;text-align:center;font-size:13.5px;line-height:1.7">
+        <div style="font-weight:700;margin-top:10px;font-size:14.5px">คำสั่ง</div>
+        <div style="margin-top:4px;font-size:13.5px">${parenBox(approved)} อนุญาต &nbsp;&nbsp;&nbsp;&nbsp; ${parenBox(rec.status === 'Rejected')} ไม่อนุญาต</div>
+        <div style="${line}width:100%;margin-top:6px;font-size:13.5px">${esc(rec.comments || 'อนุมัติผ่านระบบสารสนเทศการลาอิเล็กทรอนิกส์')}</div>
+        <div style="margin-top:8px;text-align:center;font-size:13.5px;line-height:1.55">
           <div>(ลงชื่อ) <span style="${line}min-width:140px">&nbsp;</span></div>
           <div>( ${DIRECTOR_NAME ? esc(DIRECTOR_NAME) : 'ผู้อำนวยการโรงเรียนบ้านห้วยตาด'} )</div>
           <div>ตำแหน่ง ผู้อำนวยการโรงเรียนบ้านห้วยตาด</div>
@@ -338,10 +342,10 @@ window.printDistrictReport = () => {
   </tr>`).join('');
 
   const body = `
-  <div style="max-width:1000px;margin:0 auto;padding:32px 36px;font-family:'TH Sarabun New','TH SarabunPSK','Sarabun',sans-serif;color:#000">
+  <div style="max-width:1000px;margin:0 auto;padding:24px 32px;font-family:'TH Sarabun New','TH SarabunPSK','Sarabun',sans-serif;color:#000">
     <div style="text-align:center;font-size:18px;font-weight:700">รายงานสรุปสถิติการลาของข้าราชการครูและบุคลากร</div>
     <div style="text-align:center;font-size:15px;margin-top:4px">${esc(SCHOOL_NAME)}</div>
-    <div style="text-align:center;font-size:14px;margin:4px 0 18px">ปีงบประมาณ ${nowBE} (1 ตุลาคม ${ce - 1 + 543} – 30 กันยายน ${ce + 543})</div>
+    <div style="text-align:center;font-size:14px;margin:4px 0 14px">ปีงบประมาณ ${nowBE} (1 ตุลาคม ${ce - 1 + 543} – 30 กันยายน ${ce + 543})</div>
     <table style="border-collapse:collapse;width:100%">
       <thead><tr>
         ${th('ที่', 'width:36px')}${th('ชื่อ-สกุล')}${th('ตำแหน่ง')}
@@ -378,10 +382,38 @@ function openPrint(bodyHtml) {
     <title>ใบลา · ${esc(SCHOOL_NAME)}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap">
-    <style>@page{size:A4;margin:14mm}body{margin:0;font-family:'Sarabun',sans-serif}@media print{.noprint{display:none}}</style>
+    <style>
+      @font-face {
+        font-family: 'TH Sarabun New';
+        src: url('https://cdn.jsdelivr.net/gh/lazywasabi/thai-web-fonts@v1.0/fonts/THSarabunNew/THSarabunNew.woff2') format('woff2'),
+             url('https://cdn.jsdelivr.net/gh/lazywasabi/thai-web-fonts@v1.0/fonts/THSarabunNew/THSarabunNew.woff') format('woff');
+        font-weight: normal;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'TH Sarabun New';
+        src: url('https://cdn.jsdelivr.net/gh/lazywasabi/thai-web-fonts@v1.0/fonts/THSarabunNew/THSarabunNew-Bold.woff2') format('woff2'),
+             url('https://cdn.jsdelivr.net/gh/lazywasabi/thai-web-fonts@v1.0/fonts/THSarabunNew/THSarabunNew-Bold.woff') format('woff');
+        font-weight: bold;
+        font-style: normal;
+      }
+      @page { size: A4 portrait; margin: 8mm 12mm 6mm 12mm; }
+      html, body { margin: 0; padding: 0; background: #fff; }
+      body { font-family: 'TH Sarabun New', 'TH SarabunPSK', 'Sarabun', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .leave-form-doc { page-break-inside: avoid; break-inside: avoid; }
+      @media print {
+        .noprint { display: none !important; }
+        body { background: #fff; padding: 0; }
+        .leave-form-doc { padding: 0; box-shadow: none; }
+      }
+      @media screen {
+        body { background: #f1f5f9; padding: 16px; }
+        .leave-form-doc { background: #fff; padding: 20px 32px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 4px; }
+      }
+    </style>
     </head><body>
-    <div class="noprint" style="text-align:center;padding:12px;background:#f1f5f9">
-      <button onclick="window.print()" style="padding:8px 20px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-family:'Sarabun';font-weight:700;cursor:pointer">พิมพ์ / บันทึกเป็น PDF</button>
+    <div class="noprint" style="text-align:center;padding:10px;margin-bottom:12px;background:#e2e8f0;border-radius:8px">
+      <button onclick="window.print()" style="padding:8px 24px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-family:'TH Sarabun New','Sarabun',sans-serif;font-size:16px;font-weight:700;cursor:pointer">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
     </div>
     ${bodyHtml}
     </body></html>`);

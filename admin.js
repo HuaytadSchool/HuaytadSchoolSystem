@@ -129,15 +129,19 @@ function renderAdmin() {
   const tab3 = `
     <div style="font-size:18px;font-weight:800;margin-bottom:16px">ข้อมูลผู้ลงนามในใบลา</div>
     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:24px;max-width:480px">
-      <div style="font-size:13px;color:#64748b;margin-bottom:18px">ชื่อที่กำหนดจะปรากฏในใบลาเมื่อพิมพ์</div>
+      <div style="font-size:13px;color:#64748b;margin-bottom:18px">ชื่อและตำแหน่งที่กำหนดจะปรากฏในใบลาเมื่อพิมพ์</div>
       <div style="display:flex;flex-direction:column;gap:14px">
         <div>
           <div class="dc-label">ชื่อ-นามสกุล ผู้อำนวยการ (ลงนามอนุมัติ)</div>
-          <input id="cfg-director" class="dc-input" value="${esc(DIRECTOR_NAME)}" placeholder="เช่น นายพานิก สิทธิ">
+          <input id="cfg-director" class="dc-input" value="${esc(DIRECTOR_NAME)}" placeholder="เช่น นายปนิก สิทธิ">
         </div>
         <div>
           <div class="dc-label">ชื่อ-นามสกุล ผู้ตรวจสอบ/ผู้จัดทำ (ฝ่ายบุคคล)</div>
-          <input id="cfg-preparer" class="dc-input" value="${esc(PREPARER_NAME)}" placeholder="เช่น นางหทัยชนก ปรุงพาณิช">
+          <input id="cfg-preparer" class="dc-input" value="${esc(PREPARER_NAME)}" placeholder="เช่น นางสาวจิราพา สอนสุภาพ">
+        </div>
+        <div>
+          <div class="dc-label">ตำแหน่ง ผู้ตรวจสอบ/ผู้จัดทำ (ฝ่ายบุคคล)</div>
+          <input id="cfg-preparer-pos" class="dc-input" value="${esc(PREPARER_POSITION)}" placeholder="เช่น ครู, ครูชำนาญการพิเศษ, ครูโรงเรียนบ้านห้วยตาด">
         </div>
         <div onclick="saveDocConfig()" class="dc-hover" style="cursor:pointer;display:inline-block;background:#2563eb;color:#fff;padding:10px 22px;border-radius:9px;font-size:13px;font-weight:700">บันทึก</div>
       </div>
@@ -273,11 +277,13 @@ window.removeUser = async (id) => {
 window.saveDocConfig = async () => {
   const director_name = document.getElementById('cfg-director').value.trim();
   const preparer_name = document.getElementById('cfg-preparer').value.trim();
+  const preparer_position = document.getElementById('cfg-preparer-pos').value.trim();
   showLoader(true);
   try {
-    await api.saveSettings({ director_name, preparer_name });
+    await api.saveSettings({ director_name, preparer_name, preparer_position });
     DIRECTOR_NAME = director_name;
     PREPARER_NAME = preparer_name;
+    PREPARER_POSITION = preparer_position;
     toast('บันทึกข้อมูลผู้ลงนามเรียบร้อย');
   } catch (err) { swalError(err.message); } finally { showLoader(false); }
 };
@@ -320,8 +326,8 @@ window.openUserModal = (id) => {
           <div style="flex:1"><div class="dc-label">นามสกุล</div><input type="text" id="uf-surname" class="dc-input" value="${u ? esc(u.surname || '') : ''}"/></div>
         </div>
         <div style="display:flex;gap:10px">
-          <div style="flex:1"><div class="dc-label">ตำแหน่ง/วิทยฐานะ</div><input type="text" id="uf-position" class="dc-input" value="${u ? esc(u.position || '') : ''}"/></div>
-          <div style="flex:1"><div class="dc-label">กลุ่มสาระ/ฝ่าย</div><input type="text" id="uf-dept" class="dc-input" value="${u ? esc(u.department || '') : ''}"/></div>
+          <div style="flex:1"><div class="dc-label">ตำแหน่ง</div>${positionSelectHtml('uf', u ? (u.position || '') : 'ครู')}</div>
+          <div style="flex:1"><div class="dc-label">กลุ่มสาระ/ฝ่าย</div>${departmentSelectHtml('uf', u ? (u.department || '') : 'ปฐมวัย')}</div>
         </div>
         <div><div class="dc-label">อีเมล (ถ้ามี)</div><input type="email" id="uf-email" class="dc-input" value="${u ? esc(u.email || '') : ''}"/></div>
         <div><div class="dc-label">สิทธิ์การใช้งาน</div>
@@ -343,8 +349,8 @@ window.saveUser = async () => {
     prefix: getPrefix('uf'),
     name: document.getElementById('uf-name').value.trim(),
     surname: document.getElementById('uf-surname').value.trim(),
-    position: document.getElementById('uf-position').value.trim(),
-    department: document.getElementById('uf-dept').value.trim(),
+    position: getPositionValue('uf'),
+    department: getDepartmentValue('uf'),
     email: document.getElementById('uf-email').value.trim(),
     role: document.getElementById('uf-role').value,
   };

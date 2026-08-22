@@ -85,6 +85,12 @@ function mountRegDate() {
       <option value="male">ชาย</option>
       <option value="female">หญิง</option>
     </select>`;
+
+  const p = document.getElementById('reg-position-mount');
+  if (p && !p.innerHTML) p.innerHTML = positionSelectHtml('reg', 'ครู');
+
+  const d = document.getElementById('reg-dept-mount');
+  if (d && !d.innerHTML) d.innerHTML = departmentSelectHtml('reg', 'ปฐมวัย');
 }
 
 function prefixSelectHtml(id, current) {
@@ -130,9 +136,9 @@ document.getElementById('form-bind-user').addEventListener('submit', async (e) =
       prefix: getPrefix('reg'),
       name: document.getElementById('teacherName').value.trim(),
       surname: document.getElementById('teacherSurname').value.trim(),
-      position: document.getElementById('teacherPosition').value.trim(),
-      department: document.getElementById('teacherDept').value.trim(),
-      phone: document.getElementById('teacherPhone').value.trim(),
+      position: getPositionValue('reg'),
+      department: getDepartmentValue('reg'),
+      phone: formatPhone(document.getElementById('teacherPhone').value),
       email: document.getElementById('teacherEmail').value.trim(),
       line_user_id: currentLineProfile ? currentLineProfile.userId : 'mock_line_user_id',
       photo_url: currentLineProfile ? currentLineProfile.pictureUrl || '' : '',
@@ -173,6 +179,7 @@ async function routeByRole() {
     // Signatory names from DB: manual config (settings) overrides role-based (getSignatories)
     DIRECTOR_NAME = (settings && settings.director_name) || (sig && sig.director) || '';
     PREPARER_NAME = (settings && settings.preparer_name) || (sig && sig.hr) || '';
+    PREPARER_POSITION = (settings && settings.preparer_position) || 'ครูโรงเรียนบ้านห้วยตาด';
     await reloadPortal();
   } catch (err) { swalError(err.message); }
   finally { showLoader(false); }
