@@ -381,8 +381,10 @@ function openPrint(bodyHtml) {
   w.document.write(`<!DOCTYPE html><html lang="th"><head><meta charset="utf-8">
     <title>ใบลา · ${esc(SCHOOL_NAME)}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap">
     <style>
+      @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap');
       @font-face {
         font-family: 'TH Sarabun New';
         src: url('https://cdn.jsdelivr.net/gh/lazywasabi/thai-web-fonts@v1.0/fonts/THSarabunNew/THSarabunNew.woff2') format('woff2'),
@@ -399,7 +401,7 @@ function openPrint(bodyHtml) {
       }
       @page { size: A4 portrait; margin: 8mm 12mm 6mm 12mm; }
       html, body { margin: 0; padding: 0; background: #fff; }
-      body { font-family: 'TH Sarabun New', 'TH SarabunPSK', 'Sarabun', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body { font-family: 'TH Sarabun New', 'Sarabun', 'TH SarabunPSK', -apple-system, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .leave-form-doc { page-break-inside: avoid; break-inside: avoid; }
       @media print {
         .noprint { display: none !important; }
