@@ -211,8 +211,12 @@ function buildLeaveFormHtml(rec, teacher, quotas) {
 
     <div style="margin-top:6px">ตั้งแต่วันที่ ${fill(fmtThaiFullDate(from), '160px', 'center')} ถึงวันที่ ${fill(fmtThaiFullDate(to), '160px', 'center')} มีกำหนด ${fill(rec.total_days, '40px', 'center')} วัน</div>
     <div>ข้าพเจ้าได้ลา ${parenBox(lastKind === 'sick')} ป่วย ${parenBox(lastKind === 'personal')} กิจส่วนตัว ${parenBox(lastKind === 'maternity')} คลอดบุตร ครั้งสุดท้ายตั้งแต่วันที่ ${fill(lastFromStr, '140px', 'center')}</div>
-    <div>ถึงวันที่ ${fill(lastToStr, '140px', 'center')} มีกำหนด ${fill(lastDaysStr, '40px', 'center')} วัน ในระหว่างลาจะติดต่อข้าพเจ้าได้ที่ ${fill(contactVal, '220px', 'left')}</div>
-    <div>${fill('', '330px', 'left')} หมายเลขโทรศัพท์ ${fill(rec.phone || teacher.phone || '', '190px', 'left')}</div>
+    <div>ถึงวันที่ ${fill(lastToStr, '140px', 'center')} มีกำหนด ${fill(lastDaysStr, '40px', 'center')} วัน ในระหว่างลาจะติดต่อข้าพเจ้าได้ที่</div>
+    <div style="display:flex;align-items:baseline;gap:8px;margin-top:2px">
+      <span style="flex:1;border-bottom:1px dotted #000;padding:0 4px;min-height:18px">${esc(contactVal)}</span>
+      <span style="white-space:nowrap">หมายเลขโทรศัพท์</span>
+      <span style="min-width:180px;border-bottom:1px dotted #000;text-align:center;padding:0 4px">${esc(formatPhone(rec.phone || teacher.phone || ''))}</span>
+    </div>
 
     <div style="margin-top:10px;text-align:right;padding-right:20px">
       <div style="display:inline-block;text-align:center;line-height:1.55">
