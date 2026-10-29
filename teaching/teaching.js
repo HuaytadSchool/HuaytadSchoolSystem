@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * Teaching Space Frontend Script - โรงเรียนห้วยตาดวิทยา
+ * Teaching Space Frontend Script - โรงเรียนบ้านห้วยตาด
  * มาตรฐาน: ใช้ SVG Icons ทั้งหมด (100% Emoji-Free)
  * ============================================================================
  */
@@ -153,7 +153,7 @@ function renderLoginScreen() {
       <div style="background:#ffffff; border:1px solid var(--border); border-radius:24px; box-shadow:var(--shadow-md); max-width:400px; width:100%; padding:36px 24px; text-align:center;">
         <img src="../img/logo-ht.png" alt="Logo" style="width:72px; height:72px; margin-bottom:16px; object-fit:contain;" onerror="this.style.display='none'"/>
         <h2 style="font-size:20px; font-weight:800; color:var(--primary); margin-bottom:6px;">Teaching Space</h2>
-        <p style="font-size:13px; color:var(--text-muted); margin-bottom:24px;">ระบบส่งแผนการสอนและบันทึกหลังสอน<br/>โรงเรียนห้วยตาดวิทยา</p>
+        <p style="font-size:13px; color:var(--text-muted); margin-bottom:24px;">ระบบส่งแผนการสอนและบันทึกหลังสอน<br/>โรงเรียนบ้านห้วยตาด</p>
         <button onclick="handleLineLogin()" style="width:100%; background:#06c755; color:#ffffff; border:none; border-radius:12px; padding:14px; font-size:15px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; box-shadow:0 4px 12px rgba(6,199,85,0.25);">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="#ffffff"><path d="M12 2C6.48 2 2 5.92 2 10.75c0 4.3 3.6 7.9 8.5 8.63.33.07.78.22.89.51.1.26.07.67.03 1.05-.12.87-.53 2.68-.58 2.94-.08.41.15.56.44.38 2.37-1.4 6.44-3.8 8.79-6.5C21.32 15.65 22 13.3 22 10.75 22 5.92 17.52 2 12 2z"/></svg>
           เข้าสู่ระบบด้วย LINE
@@ -243,6 +243,11 @@ function renderLoads(container) {
     const latestPlan = (load.plans && load.plans.length > 0) ? load.plans[load.plans.length - 1] : null;
     const status = latestPlan ? latestPlan.status : 'Not_Submitted';
     const statusText = getStatusBadge(status);
+    const isLocked = ['Pending_Head', 'Pending_Academic', 'Approved'].includes(status);
+    
+    // ตรวจสอบวันกำหนดส่ง
+    const dueDate = latestPlan && latestPlan.due_date ? latestPlan.due_date : (state.rounds[0] ? state.rounds[0].due_date : '');
+    const isOverdue = dueDate && new Date(dueDate) < new Date() && ['Not_Submitted', 'Draft', 'Revise'].includes(status);
 
     html += `
       <div class="load-card">
@@ -252,7 +257,10 @@ function renderLoads(container) {
             <div class="subject-name">${esc(load.subject_name)}</div>
             <div class="classroom-tag">ชั้น ${esc(load.classroom)} ${load.level ? '(' + esc(load.level) + ')' : ''}</div>
           </div>
-          <div>${statusText}</div>
+          <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+            ${statusText}
+            ${isOverdue ? `<span class="status-badge status-revise" style="font-size:11px;">${svg('alert', 11)} ค้างส่งเกินกำหนด</span>` : ''}
+          </div>
         </div>
 
         ${latestPlan ? `
@@ -266,15 +274,31 @@ function renderLoads(container) {
           <div class="reviewer-info">
             <span>ผู้ตรวจ: <strong>${esc(load.reviewer_name)}</strong></span>
           </div>
-          <div style="display:flex; gap:8px;">
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            ${latestPlan ? `
+              <button class="btn-secondary" onclick="openHistoryModal('${latestPlan.plan_id}')">
+                ${svg('clock', 14)} <span>ประวัติ</span>
+              </button>
+            ` : ''}
             ${latestPlan && latestPlan.drive_pdf_url ? `
               <a href="${latestPlan.drive_pdf_url}" target="_blank" class="btn-secondary" style="text-decoration:none;">
                 ${svg('fileText', 14)} <span>ดู PDF</span>
               </a>
             ` : ''}
-            <button class="btn-primary" onclick="openSubmitModal('${load.load_id}')">
-              ${latestPlan ? `${svg('edit', 14)} <span>ส่งฉบับแก้ไข</span>` : `${svg('send', 14)} <span>ส่งแผนการสอน</span>`}
-            </button>
+            ${isLocked ? `
+              <span style="font-size:12px; color:#64748b; display:inline-flex; align-items:center; gap:4px; padding:4px 8px; background:#f1f5f9; border-radius:6px;">
+                ${svg('lock', 12)} ล็อกรอการตรวจ
+              </span>
+            ` : `
+              <button class="btn-primary" onclick="openSubmitModal('${load.load_id}')">
+                ${latestPlan ? `${svg('edit', 14)} <span>${status === 'Revise' ? 'ส่งฉบับแก้ไข' : 'แก้ไขร่าง'}</span>` : `${svg('send', 14)} <span>ส่งแผนการสอน</span>`}
+              </button>
+            `}
+            ${status === 'Approved' ? `
+              <button class="btn-primary" onclick="switchTab('reflections')" style="background:#16a34a;">
+                ${svg('plus', 14)} <span>บันทึกหลังสอน</span>
+              </button>
+            ` : ''}
           </div>
         </div>
       </div>
@@ -359,35 +383,66 @@ function openSubmitModal(loadId) {
   state.uploadedBase64 = null;
   state.uploadedFileName = null;
 
+  const latestPlan = (load.plans && load.plans.length > 0) ? load.plans[load.plans.length - 1] : null;
+  
+  if (latestPlan && ['Pending_Head', 'Pending_Academic', 'Approved'].includes(latestPlan.status)) {
+    Swal.fire({
+      icon: 'info',
+      title: 'ไม่สามารถแก้ไขได้',
+      text: 'แผนการสอนฉบับนี้อยู่ระหว่างการตรวจรับรองหรือได้รับการรับรองแล้ว',
+      confirmButtonColor: '#1e3a8a'
+    });
+    return;
+  }
+
+  const isRevise = latestPlan && latestPlan.status === 'Revise';
+  const hasExistingPdf = latestPlan && latestPlan.drive_pdf_url;
+
   const content = `
     <div class="modal-header">
-      <div class="modal-title">ส่งแผนการสอน</div>
+      <div class="modal-title">${latestPlan ? 'แก้ไขและส่งแผนการสอน' : 'ส่งแผนการสอน'}</div>
       <button class="modal-close-btn" onclick="closeModal()">${svg('x', 18)}</button>
     </div>
     <div style="margin-bottom:14px; background:#f1f5f9; padding:10px 14px; border-radius:8px; font-size:13px; border:1px solid #e2e8f0;">
       <div><strong>วิชา:</strong> ${esc(load.subject_code)} ${esc(load.subject_name)}</div>
       <div><strong>ชั้นเรียน:</strong> ${esc(load.classroom)} | <strong>ผู้ตรวจ:</strong> ${esc(load.reviewer_name)}</div>
+      ${latestPlan ? `<div><strong>ฉบับปัจจุบัน:</strong> ฉบับที่ ${latestPlan.version || 1}</div>` : ''}
     </div>
+
+    ${isRevise ? `
+      <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:13px; color:#991b1b;">
+        <div style="font-weight:700; display:flex; align-items:center; gap:6px;">
+          ${svg('alert', 14)} <span>แผนนี้ถูกส่งกลับเพื่อแก้ไข</span>
+        </div>
+        <div style="margin-top:4px;">กรุณาปรับปรุงแผนและแนบไฟล์ PDF ฉบับใหม่ (หรือกดดูประวัติเพื่ออ่านความเห็น)</div>
+      </div>
+    ` : ''}
+
     <form id="plan-form" onsubmit="handlePlanSubmit(event)">
       <div class="form-group">
         <label class="form-label">รอบการส่งแผน</label>
         <select id="modal-round-id" class="form-select">
-          ${state.rounds.map(r => `<option value="${r.round_id}">${esc(r.title)} (กำหนดส่ง: ${formatDate(r.due_date)})</option>`).join('')}
+          ${state.rounds.map(r => `<option value="${r.round_id}" ${latestPlan && latestPlan.round_id === r.round_id ? 'selected' : ''}>${esc(r.title)} (กำหนดส่ง: ${formatDate(r.due_date)})</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
         <label class="form-label">ชื่อหน่วยการเรียนรู้ / เรื่อง *</label>
-        <input type="text" id="modal-unit-title" class="form-input" placeholder="เช่น หน่วยที่ 1 การออกแบบอัลกอริทึม" required/>
+        <input type="text" id="modal-unit-title" class="form-input" placeholder="เช่น หน่วยที่ 1 การออกแบบอัลกอริทึม" value="${latestPlan ? esc(latestPlan.unit_title || '') : ''}" required/>
       </div>
       <div class="form-group">
         <label class="form-label">จำนวนชั่วโมง *</label>
-        <input type="number" id="modal-hours" class="form-input" placeholder="เช่น 4" min="1" max="100" required/>
+        <input type="number" id="modal-hours" class="form-input" placeholder="เช่น 4" min="1" max="100" value="${latestPlan ? esc(latestPlan.teaching_hours || '') : ''}" required/>
       </div>
       <div class="form-group">
-        <label class="form-label">แนบไฟล์แผนการสอน (เฉพาะ PDF ไม่เกิน 10 MB) *</label>
+        <label class="form-label">ไฟล์แผนการสอน (เฉพาะ PDF ไม่เกิน 10 MB) ${hasExistingPdf ? '(ไม่บังคับ)' : '*'}</label>
         <div class="file-dropzone" onclick="document.getElementById('pdf-file-input').click()">
           <div id="dropzone-text" style="font-size:13px; color:#64748b;">
-            ${svg('paperclip', 18)} <span>แตะเพื่อเลือกไฟล์ PDF</span>
+            ${hasExistingPdf ? `
+              <div style="color:#0369a1; font-weight:600;">${svg('fileText', 16)} มีไฟล์ PDF ฉบับเดิมแล้ว</div>
+              <small style="color:#64748b;">แตะที่นี่หากต้องการแนบไฟล์ฉบับปรับปรุงใหม่ (เว้นว่างไว้เพื่อใช้ไฟล์เดิม)</small>
+            ` : `
+              ${svg('paperclip', 18)} <span>แตะเพื่อเลือกไฟล์ PDF</span>
+            `}
           </div>
         </div>
         <input type="file" id="pdf-file-input" accept="application/pdf" style="display:none;" onchange="handleFileChange(event)"/>
@@ -439,28 +494,30 @@ async function submitPlanForm(isDraft) {
   const unitTitle = document.getElementById('modal-unit-title').value.trim();
   const hours = document.getElementById('modal-hours').value.trim();
   const roundId = document.getElementById('modal-round-id').value;
+  const load = state.selectedLoad;
+  const latestPlan = (load && load.plans && load.plans.length > 0) ? load.plans[load.plans.length - 1] : null;
 
   if (!unitTitle || !hours) {
     Swal.fire('กรุณากรอกข้อมูลให้ครบ', 'ระบุชื่อหน่วยการเรียนรู้และจำนวนชั่วโมง', 'warning');
     return;
   }
 
-  if (!state.uploadedBase64) {
+  if (!state.uploadedBase64 && (!latestPlan || !latestPlan.drive_pdf_url)) {
     Swal.fire('กรุณาแนบไฟล์ PDF', 'ต้องแนบไฟล์แผนการสอนประกอบด้วยครับ', 'warning');
     return;
   }
 
   closeModal();
-  showLoader(true, isDraft ? 'กำลังบันทึกฉบับร่าง...' : 'กำลังอัปโหลดไฟล์ขึ้น Google Drive และส่งตรวจ...');
+  showLoader(true, isDraft ? 'กำลังบันทึกฉบับร่าง...' : 'กำลังประมวลผลและส่งตรวจ...');
 
   try {
     const payload = {
-      loadId: state.selectedLoad.load_id,
+      loadId: load.load_id,
       roundId: roundId,
       unitTitle: unitTitle,
       teachingHours: hours,
-      base64Pdf: state.uploadedBase64,
-      fileName: state.uploadedFileName,
+      base64Pdf: state.uploadedBase64 || '',
+      fileName: state.uploadedFileName || '',
       isDraft: isDraft,
       lineUserId: state.teacher.lineUserId
     };
@@ -470,7 +527,7 @@ async function submitPlanForm(isDraft) {
     Swal.fire({
       icon: 'success',
       title: isDraft ? 'บันทึกฉบับร่างแล้ว' : 'ส่งแผนการสอนสำเร็จ',
-      text: isDraft ? 'คุณสามารถกลับมาแก้ไขและส่งตรวจได้ตลอดเวลา' : 'ระบบแจ้งเตือนหัวหน้ากลุ่มสาระเรียบร้อยแล้ว',
+      text: isDraft ? 'คุณสามารถกลับมาแก้ไขและส่งตรวจได้ตลอดเวลา' : 'ระบบแจ้งเตือนผู้ตรวจเรียบร้อยแล้ว',
       confirmButtonColor: '#1e3a8a'
     }).then(() => {
       window.location.reload();
@@ -480,6 +537,85 @@ async function submitPlanForm(isDraft) {
     Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
   } finally {
     showLoader(false);
+  }
+}
+
+// Modal ประวัติฉบับและการตรวจ (Plan History & Timeline)
+async function openHistoryModal(planId) {
+  showLoader(true, 'กำลังดึงประวัติการส่งแผน...');
+  try {
+    const data = await api.getPlanHistory(planId, state.teacher.lineUserId);
+    showLoader(false);
+
+    const plan = data.plan;
+    const sub = data.subject;
+    const reviews = data.reviews || [];
+
+    let reviewsHtml = '';
+    if (reviews.length === 0) {
+      reviewsHtml = `
+        <div style="text-align:center; padding:20px 0; color:#64748b; font-size:13px;">
+          ยังไม่มีบันทึกประวัติการตรวจ
+        </div>`;
+    } else {
+      reviewsHtml = reviews.map(rev => {
+        const isPass = rev.action === 'Pass';
+        const isRevise = rev.action === 'Revise';
+        const isSubmit = rev.action === 'Submit';
+        
+        let actionBadge = `<span class="status-badge status-pending_head">${svg('send', 11)} ส่งแผน</span>`;
+        if (isPass) actionBadge = `<span class="status-badge status-approved">${svg('check', 11)} ผ่าน</span>`;
+        if (isRevise) actionBadge = `<span class="status-badge status-revise">${svg('refresh', 11)} ให้แก้ไข</span>`;
+
+        return `
+          <div style="border-left: 2px solid #cbd5e1; padding-left: 14px; margin-left: 8px; margin-bottom: 16px; position:relative;">
+            <div style="position:absolute; left:-6px; top:0; width:10px; height:10px; border-radius:50%; background:#1e3a8a;"></div>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+              <div style="font-size:13px; font-weight:700; color:#0f172a;">
+                ${esc(rev.reviewer_name)} (${rev.role === 'Head' ? 'หัวหน้ากลุ่มสาระ' : rev.role === 'Academic' ? 'ฝ่ายวิชาการ' : 'ผู้สอน'})
+              </div>
+              <div>${actionBadge}</div>
+            </div>
+            <div style="font-size:11.5px; color:#64748b; margin-top:2px;">
+              ฉบับที่ ${rev.version} • ${formatDate(rev.timestamp)}
+            </div>
+            ${rev.comment ? `
+              <div style="margin-top:6px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 10px; font-size:12.5px; color:#334155;">
+                <strong>ข้อเสนอแนะ:</strong> ${esc(rev.comment)}
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    const content = `
+      <div class="modal-header">
+        <div class="modal-title">ประวัติการส่งและการตรวจ</div>
+        <button class="modal-close-btn" onclick="closeModal()">${svg('x', 18)}</button>
+      </div>
+      <div style="background:#f1f5f9; padding:12px; border-radius:8px; font-size:13px; margin-bottom:16px; border:1px solid #e2e8f0;">
+        <div><strong>วิชา:</strong> ${esc(sub.code)} ${esc(sub.name)} (ชั้น ${esc(sub.classroom)})</div>
+        <div><strong>หน่วยการเรียนรู้:</strong> ${esc(plan.unit_title)} (${plan.teaching_hours} ชม.)</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; pt-2; border-top:1px dashed #cbd5e1; padding-top:6px;">
+          <span><strong>ฉบับปัจจุบัน:</strong> ฉบับที่ ${plan.current_version}</span>
+          ${getStatusBadge(plan.status)}
+        </div>
+      </div>
+      <div style="max-height:360px; overflow-y:auto; padding-right:4px;">
+        <div style="font-size:13px; font-weight:700; margin-bottom:12px; color:#1e3a8a;">ลำดับเหตุการณ์การตรวจ</div>
+        ${reviewsHtml}
+      </div>
+      <div style="margin-top:16px; display:flex; justify-content:flex-end;">
+        <button class="btn-secondary" onclick="closeModal()">ปิดหน้าต่าง</button>
+      </div>
+    `;
+
+    showModal(content);
+
+  } catch (err) {
+    showLoader(false);
+    Swal.fire('ข้อผิดพลาด', err.message, 'error');
   }
 }
 
