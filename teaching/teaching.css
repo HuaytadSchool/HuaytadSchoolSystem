@@ -637,6 +637,26 @@ body {
   border-color: var(--border-focus);
 }
 
+input.filter-select {
+  cursor: text;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 12px 8px 34px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  background-color: #fff;
+  color: var(--text-main);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.search-input:focus {
+  border-color: var(--border-focus);
+}
+
 .action-toolbar {
   display: flex;
   flex-wrap: wrap;

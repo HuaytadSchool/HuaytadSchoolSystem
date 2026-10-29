@@ -62,7 +62,10 @@ let state = {
   reportFilterTerm: '',
   reportFilterRound: '',
   reportFilterGroup: '',
-  reportSubView: 'plans'
+  reportSubView: 'plans',
+  manageSubTab: 'loads',
+  subjectSearchKeyword: '',
+  subjectFilterGroup: ''
 };
 
 // API Call Proxy (แบบเดียวกับระบบลาของโรงเรียน)
@@ -592,22 +595,112 @@ async function submitReviewAction(planId) {
 
 // Tab 4: จัดการวิชาการ (สำหรับ Academic / Admin / Director)
 async function renderManage(container) {
-  container.innerHTML = `
-    <div style="text-align:center; padding:40px 16px;">
-      <div class="spinner" style="margin:0 auto 12px;"></div>
-      <p style="color:#64748b; font-size:13px;">กำลังโหลดข้อมูลการจัดการฝ่ายวิชาการ...</p>
-    </div>`;
+  if (!state.manageData) {
+    container.innerHTML = `
+      <div style="text-align:center; padding:40px 16px;">
+        <div class="spinner" style="margin:0 auto 12px;"></div>
+        <p style="color:#64748b; font-size:13px;">กำลังโหลดข้อมูลการจัดการฝ่ายวิชาการ...</p>
+      </div>`;
+    try {
+      const data = await api.getAcademicManageData(state.teacher.lineUserId);
+      state.manageData = data;
+    } catch (err) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">${svg('alert', 40, 1.5)}</div>
+          <p style="color:#dc2626;">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
+          <small class="text-muted">${esc(err.message)}</small>
+        </div>`;
+      return;
+    }
+  }
 
-  try {
-    const data = await api.getAcademicManageData(state.teacher.lineUserId);
-    state.manageData = data;
+  const data = state.manageData;
+  const rounds = data.rounds || [];
+  const loads = data.loads || [];
+  const subjects = data.subjects || [];
+  const groups = data.groups || [];
+  const currentSubTab = state.manageSubTab || 'loads';
 
-    const rounds = data.rounds || [];
-    const loads = data.loads || [];
+  // Subtab navigation header
+  let html = `
+    <div style="margin-bottom:18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+      <div>
+        <h2 style="font-size:18px; font-weight:800; color:var(--primary); margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+          ${svg('settings', 18)} <span>การจัดการฝ่ายวิชาการ</span>
+        </h2>
+        <p style="font-size:12.5px; color:var(--text-muted);">
+          โรงเรียนบ้านห้วยตาด · จัดรอบส่ง มอบหมายภาระการสอน และคลังรายวิชา
+        </p>
+      </div>
+      <div class="subview-tabs">
+        <button class="subview-btn ${currentSubTab === 'loads' ? 'active' : ''}" onclick="setManageSubTab('loads')">
+          ${svg('book', 14)} <span>ภาระการสอน (${loads.length})</span>
+        </button>
+        <button class="subview-btn ${currentSubTab === 'rounds' ? 'active' : ''}" onclick="setManageSubTab('rounds')">
+          ${svg('calendar', 14)} <span>รอบการส่งแผน (${rounds.length})</span>
+        </button>
+        <button class="subview-btn ${currentSubTab === 'subjects' ? 'active' : ''}" onclick="setManageSubTab('subjects')">
+          ${svg('list', 14)} <span>คลังรายวิชา (${subjects.length})</span>
+        </button>
+      </div>
+    </div>
+  `;
 
+  if (currentSubTab === 'loads') {
+    // -------------------------------------------------------------
+    // ส่วนที่ 1: ภาระการสอน
+    // -------------------------------------------------------------
+    let loadsHtml = '';
+    if (loads.length === 0) {
+      loadsHtml = '<div class="empty-state"><div class="empty-icon">' + svg('book', 40, 1.5) + '</div><p style="margin-top:10px;">ยังไม่มีการมอบหมายภาระการสอนในภาคเรียนนี้</p></div>';
+    } else {
+      loadsHtml = loads.map(l => `
+        <div class="load-card" style="margin-bottom:12px;">
+          <div class="load-header">
+            <div>
+              <span class="subject-code">${esc(l.subject_code)}</span>
+              <div class="subject-name">${esc(l.subject_name)} (ชั้น ${esc(l.classroom)})</div>
+              <div class="classroom-tag" style="margin-top:2px;">
+                ผู้สอน: <strong>${esc(l.teacher_name)}</strong> ${l.teacher_dept ? '(' + esc(l.teacher_dept) + ')' : ''}
+              </div>
+            </div>
+          </div>
+          <div class="load-info-row">
+            <div class="reviewer-info">
+              ผู้ตรวจ: <strong>${esc(l.reviewer_name)}</strong>
+            </div>
+            <div>
+              <button class="btn-secondary" style="font-size:12px; padding:6px 12px;" onclick="openChangeReviewerModal('${l.load_id}', '${esc(l.subject_code)}', '${esc(l.classroom)}', '${esc(l.reviewer_id)}')">
+                ${svg('edit', 12)} <span>เปลี่ยนผู้ตรวจ</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    html += `
+      <div style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div style="font-size:15px; font-weight:800; color:#1e3a8a; display:flex; align-items:center; gap:6px;">
+          ${svg('book', 16)} <span>ทะเบียนภาระการสอนและผู้ตรวจประจำวิชา</span>
+        </div>
+        <button class="btn-primary" onclick="openCreateLoadModal()" style="background:#0284c7;">
+          ${svg('plus', 14)} <span>มอบหมายภาระสอนใหม่</span>
+        </button>
+      </div>
+      <div class="cards-grid">
+        ${loadsHtml}
+      </div>
+    `;
+
+  } else if (currentSubTab === 'rounds') {
+    // -------------------------------------------------------------
+    // ส่วนที่ 2: รอบการส่งแผน
+    // -------------------------------------------------------------
     let roundsHtml = '';
     if (rounds.length === 0) {
-      roundsHtml = '<div style="color:#64748b; font-size:13px; text-align:center; padding:16px;">ยังไม่มีการเปิดรอบส่งแผนในภาคเรียนนี้</div>';
+      roundsHtml = '<div class="empty-state"><div class="empty-icon">' + svg('calendar', 40, 1.5) + '</div><p style="margin-top:10px;">ยังไม่มีการเปิดรอบส่งแผนในภาคเรียนนี้</p></div>';
     } else {
       roundsHtml = rounds.map(r => {
         const isOpen = r.is_open === true || String(r.is_open).toUpperCase() === 'TRUE';
@@ -632,82 +725,144 @@ async function renderManage(container) {
       }).join('');
     }
 
-    let loadsHtml = '';
-    if (loads.length === 0) {
-      loadsHtml = '<div style="color:#64748b; font-size:13px; text-align:center; padding:16px;">ยังไม่มีการมอบหมายภาระการสอน</div>';
-    } else {
-      loadsHtml = loads.map(l => {
-        return `
-          <div class="load-card" style="margin-bottom:12px;">
-            <div class="load-header">
-              <div>
-                <span class="subject-code">${esc(l.subject_code)}</span>
-                <div class="subject-name">${esc(l.subject_name)} (ชั้น ${esc(l.classroom)})</div>
-                <div class="classroom-tag" style="margin-top:2px;">
-                  ผู้สอน: <strong>${esc(l.teacher_name)}</strong> ${l.teacher_dept ? '(' + esc(l.teacher_dept) + ')' : ''}
-                </div>
-              </div>
-            </div>
-            <div class="load-info-row">
-              <div class="reviewer-info">
-                ผู้ตรวจ: <strong>${esc(l.reviewer_name)}</strong>
-              </div>
-              <div>
-                <button class="btn-secondary" style="font-size:12px; padding:6px 12px;" onclick="openChangeReviewerModal('${l.load_id}', '${esc(l.subject_code)}', '${esc(l.classroom)}', '${esc(l.reviewer_id)}')">
-                  ${svg('edit', 12)} <span>เปลี่ยนผู้ตรวจ</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    container.innerHTML = `
-      <div style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-        <div style="font-size:18px; font-weight:800; color:var(--primary); display:flex; align-items:center; gap:8px;">
-          ${svg('settings', 18)} <span>การจัดการฝ่ายวิชาการ</span>
-        </div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn-primary" onclick="openCreateRoundModal()">
-            ${svg('plus', 14)} <span>เปิดรอบส่งแผน</span>
-          </button>
-          <button class="btn-primary" onclick="openCreateLoadModal()" style="background:#0284c7;">
-            ${svg('plus', 14)} <span>มอบหมายภาระสอน</span>
-          </button>
-          <button class="btn-secondary" onclick="openCreateSubjectModal()">
-            ${svg('plus', 14)} <span>เพิ่มรายวิชา</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- ส่วนที่ 1: รอบการส่งแผน -->
-      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:18px; margin-bottom:24px;">
-        <div style="font-size:15px; font-weight:800; color:#1e3a8a; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+    html += `
+      <div style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div style="font-size:15px; font-weight:800; color:#1e3a8a; display:flex; align-items:center; gap:6px;">
           ${svg('calendar', 16)} <span>รอบการส่งแผนการสอน (ภาคเรียนปัจจุบัน)</span>
         </div>
-        ${roundsHtml}
+        <button class="btn-primary" onclick="openCreateRoundModal()">
+          ${svg('plus', 14)} <span>เปิดรอบส่งแผนใหม่</span>
+        </button>
       </div>
-
-      <!-- ส่วนที่ 2: ภาระการสอน -->
-      <div style="margin-bottom:14px;">
-        <div style="font-size:15px; font-weight:800; color:#1e3a8a; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
-          ${svg('book', 16)} <span>ทะเบียนภาระการสอนและผู้ตรวจประจำวิชา</span>
-        </div>
-        <div class="cards-grid">
-          ${loadsHtml}
-        </div>
+      <div>
+        ${roundsHtml}
       </div>
     `;
 
-  } catch (err) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">${svg('alert', 40, 1.5)}</div>
-        <p style="color:#dc2626;">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
-        <small class="text-muted">${esc(err.message)}</small>
-      </div>`;
+  } else if (currentSubTab === 'subjects') {
+    // -------------------------------------------------------------
+    // ส่วนที่ 3: คลังรายวิชา (Subject Catalog & Management)
+    // -------------------------------------------------------------
+    const groupMap = {};
+    groups.forEach(g => { groupMap[String(g.group_id)] = g.name; });
+
+    const keyword = (state.subjectSearchKeyword || '').trim().toLowerCase();
+    const filterGroup = state.subjectFilterGroup || '';
+
+    const filteredSubjects = subjects.filter(s => {
+      const matchKeyword = !keyword || 
+        String(s.code || '').toLowerCase().includes(keyword) || 
+        String(s.name || '').toLowerCase().includes(keyword) || 
+        String(s.level || '').toLowerCase().includes(keyword);
+      const matchGroup = !filterGroup || String(s.group_id) === String(filterGroup);
+      return matchKeyword && matchGroup;
+    });
+
+    const groupOptions = `<option value="">-- ทุกกลุ่มสาระการเรียนรู้ --</option>` + groups.map(g => 
+      `<option value="${g.group_id}" ${String(g.group_id) === String(filterGroup) ? 'selected' : ''}>${esc(g.name)}</option>`
+    ).join('');
+
+    let subjectsTableHtml = '';
+    if (filteredSubjects.length === 0) {
+      subjectsTableHtml = `
+        <div class="empty-state">
+          <div class="empty-icon">${svg('search', 40, 1.5)}</div>
+          <p style="margin-top:10px;">ไม่พบรายวิชาที่ตรงกับเงื่อนไขการค้นหา</p>
+          <small class="text-muted">ลองเปลี่ยนคำค้นหา หรือกดปุ่ม "เพิ่มรายวิชาใหม่"</small>
+        </div>
+      `;
+    } else {
+      const rows = filteredSubjects.map((s, idx) => `
+        <tr>
+          <td style="text-align:center; font-weight:600; color:var(--text-muted);">${idx + 1}</td>
+          <td>
+            <span style="font-weight:800; color:var(--primary); font-family:monospace; font-size:13.5px;">${esc(s.code)}</span>
+          </td>
+          <td style="font-weight:600; color:#1e293b;">
+            ${esc(s.name)}
+          </td>
+          <td>
+            <span class="status-badge" style="background:#f1f5f9; color:#334155;">
+              ${esc(groupMap[String(s.group_id)] || 'ไม่ระบุ')}
+            </span>
+          </td>
+          <td style="color:#64748b;">
+            ${esc(s.level || '-')}
+          </td>
+          <td style="text-align:center; white-space:nowrap;">
+            <div style="display:inline-flex; gap:6px;">
+              <button class="btn-secondary" style="padding:5px 10px; font-size:12px;" onclick='openEditSubjectModal(${JSON.stringify(s)})' title="แก้ไขรายวิชา">
+                ${svg('edit', 12)} <span>แก้ไข</span>
+              </button>
+              <button class="btn-secondary" style="padding:5px 10px; font-size:12px; color:#dc2626; border-color:#fecaca;" onclick="handleDeleteSubject('${esc(s.subject_id)}', '${esc(s.code)}', '${esc(s.name)}')" title="ลบรายวิชา">
+                ${svg('x', 12)} <span>ลบ</span>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+
+      subjectsTableHtml = `
+        <div class="table-container">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th style="width:40px; text-align:center;">ที่</th>
+                <th style="width:110px;">รหัสวิชา</th>
+                <th>ชื่อรายวิชา</th>
+                <th>กลุ่มสาระการเรียนรู้</th>
+                <th style="width:90px;">ระดับชั้น</th>
+                <th style="width:130px; text-align:center;">การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    html += `
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 18px; margin-bottom:16px; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; box-shadow:var(--shadow-sm);">
+        <div style="display:flex; flex-wrap:wrap; gap:10px; flex:1; min-width:280px;">
+          <div style="position:relative; flex:1; min-width:180px;">
+            <input type="text" class="search-input" placeholder="ค้นหารหัสวิชา หรือชื่อวิชา..." value="${esc(state.subjectSearchKeyword)}" oninput="onSubjectSearch(this.value)"/>
+            <span style="position:absolute; left:10px; top:10px; color:#94a3b8;">${svg('search', 14)}</span>
+          </div>
+          <div style="min-width:180px;">
+            <select class="filter-select" style="width:100%;" onchange="onSubjectGroupFilter(this.value)">
+              ${groupOptions}
+            </select>
+          </div>
+        </div>
+        <div>
+          <button class="btn-primary" onclick="openCreateSubjectModal()">
+            ${svg('plus', 14)} <span>เพิ่มรายวิชาใหม่</span>
+          </button>
+        </div>
+      </div>
+
+      ${subjectsTableHtml}
+    `;
   }
+
+  container.innerHTML = html;
+}
+
+function setManageSubTab(subTab) {
+  state.manageSubTab = subTab;
+  renderManage(document.getElementById('tab-content'));
+}
+
+function onSubjectSearch(keyword) {
+  state.subjectSearchKeyword = keyword;
+  renderManage(document.getElementById('tab-content'));
+}
+
+function onSubjectGroupFilter(groupId) {
+  state.subjectFilterGroup = groupId;
+  renderManage(document.getElementById('tab-content'));
 }
 
 // เปิด/ปิด สถานะรอบการส่งแผน
@@ -1024,11 +1179,141 @@ async function submitCreateSubject() {
     });
 
     Swal.fire('เพิ่มรายวิชาสำเร็จ', 'รายวิชาใหม่พร้อมสำหรับการมอบหมายภาระการสอนแล้ว', 'success').then(async () => {
+      state.manageSubTab = 'subjects';
+      state.manageData = null;
       const container = document.getElementById('tab-content');
       await renderManage(container);
     });
   } catch (err) {
     Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+  } finally {
+    showLoader(false);
+  }
+}
+
+/**
+ * เปิด Modal แก้ไขข้อมูลรายวิชา
+ */
+function openEditSubjectModal(subject) {
+  const groups = (state.manageData && state.manageData.groups) || [];
+  const groupOptions = groups.map(g => 
+    `<option value="${g.group_id}" ${String(g.group_id) === String(subject.group_id) ? 'selected' : ''}>${esc(g.name)}</option>`
+  ).join('');
+
+  const content = `
+    <div class="modal-header">
+      <div class="modal-title">แก้ไขข้อมูลรายวิชา</div>
+      <button class="modal-close-btn" onclick="closeModal()">${svg('x', 18)}</button>
+    </div>
+    <form id="edit-subject-form" onsubmit="event.preventDefault(); submitUpdateSubject('${esc(subject.subject_id)}');">
+      <div class="form-group">
+        <label class="form-label">รหัสวิชา *</label>
+        <input type="text" id="edit-sub-code" class="form-input" value="${esc(subject.code)}" required/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ชื่อรายวิชา *</label>
+        <input type="text" id="edit-sub-name" class="form-input" value="${esc(subject.name)}" required/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">กลุ่มสาระการเรียนรู้ *</label>
+        <select id="edit-sub-group" class="form-select">
+          ${groupOptions}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ระดับชั้น</label>
+        <input type="text" id="edit-sub-level" class="form-input" value="${esc(subject.level || '')}" placeholder="เช่น ม.1 หรือ ป.4"/>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button type="button" class="btn-secondary" style="flex:1; justify-content:center;" onclick="closeModal()">ยกเลิก</button>
+        <button type="submit" class="btn-primary" style="flex:1; justify-content:center;">
+          ${svg('save', 14)} <span>บันทึกการแก้ไข</span>
+        </button>
+      </div>
+    </form>
+  `;
+
+  showModal(content);
+}
+
+/**
+ * บันทึกการแก้ไขรายวิชา
+ */
+async function submitUpdateSubject(subjectId) {
+  const code = document.getElementById('edit-sub-code').value.trim();
+  const name = document.getElementById('edit-sub-name').value.trim();
+  const groupId = document.getElementById('edit-sub-group').value;
+  const level = document.getElementById('edit-sub-level').value.trim();
+
+  if (!code || !name || !groupId) {
+    Swal.fire('กรุณากรอกข้อมูลให้ครบ', 'ระบุรหัสวิชา ชื่อวิชา และกลุ่มสาระการเรียนรู้', 'warning');
+    return;
+  }
+
+  closeModal();
+  showLoader(true, 'กำลังบันทึกการแก้ไขรายวิชา...');
+
+  try {
+    await api.updateSubject({
+      subjectId: subjectId,
+      code: code,
+      name: name,
+      groupId: groupId,
+      level: level,
+      lineUserId: state.teacher.lineUserId
+    });
+
+    if (state.manageData && state.manageData.subjects) {
+      const s = state.manageData.subjects.find(x => String(x.subject_id) === String(subjectId));
+      if (s) {
+        s.code = code;
+        s.name = name;
+        s.group_id = groupId;
+        s.level = level;
+      }
+    }
+
+    Swal.fire('บันทึกสำเร็จ', 'แก้ไขข้อมูลรายวิชาเรียบร้อยแล้ว', 'success');
+    renderManage(document.getElementById('tab-content'));
+  } catch (err) {
+    Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+  } finally {
+    showLoader(false);
+  }
+}
+
+/**
+ * ลบรายวิชาออกจากระบบ
+ */
+async function handleDeleteSubject(subjectId, code, name) {
+  const result = await Swal.fire({
+    title: 'ยืนยันการลบรายวิชา?',
+    html: `คุณต้องการลบรายวิชา <strong>${esc(code)} ${esc(name)}</strong> หรือไม่?<br/><small style="color:#64748b;">(จะไม่สามารถลบได้หากมีภาระการสอนผูกอยู่กับวิชานี้)</small>`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#dc2626',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: 'ใช่, ต้องการลบ',
+    cancelButtonText: 'ยกเลิก'
+  });
+
+  if (!result.isConfirmed) return;
+
+  showLoader(true, 'กำลังลบรายวิชา...');
+  try {
+    await api.deleteSubject({
+      subjectId: subjectId,
+      lineUserId: state.teacher.lineUserId
+    });
+
+    if (state.manageData && state.manageData.subjects) {
+      state.manageData.subjects = state.manageData.subjects.filter(x => String(x.subject_id) !== String(subjectId));
+    }
+
+    Swal.fire('ลบรายวิชาสำเร็จ', `ลบรายวิชา ${esc(code)} ออกจากระบบแล้ว`, 'success');
+    renderManage(document.getElementById('tab-content'));
+  } catch (err) {
+    Swal.fire('ไม่สามารถลบได้', err.message, 'error');
   } finally {
     showLoader(false);
   }
