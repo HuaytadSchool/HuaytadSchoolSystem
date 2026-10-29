@@ -342,8 +342,10 @@ function renderReflections(container) {
           <div><span class="status-badge status-approved">${svg('checkCircle', 12)} รับรองแล้ว</span></div>
         </div>
         <div class="load-info-row">
-          <div style="font-size:12.5px; color:#64748b;">
-            สามารถบันทึกผลการจัดการเรียนรู้รายวันได้
+          <div style="display:flex; gap:8px;">
+            <button class="btn-secondary" onclick="openPlanReflectionsListModal('${item.plan_id}', '${esc(item.unit_title)}')">
+              ${svg('list', 14)} <span>ดูบันทึกทั้งหมด</span>
+            </button>
           </div>
           <button class="btn-primary" onclick="openReflectionModal('${item.plan_id}', '${esc(item.unit_title)}')">
             ${svg('plus', 14)} <span>เพิ่มบันทึกหลังสอน</span>
@@ -814,61 +816,191 @@ async function openHistoryModal(planId) {
   }
 }
 
-// Modal บันทึกหลังสอน
-function openReflectionModal(planId, unitTitle) {
+// Modal รายการบันทึกหลังสอนทั้งหมดของแผน (All Reflections for Plan)
+async function openPlanReflectionsListModal(planId, unitTitle) {
+  showLoader(true, 'กำลังโหลดรายการบันทึกหลังสอน...');
+  try {
+    const list = await api.getPlanReflections(planId, state.teacher.lineUserId);
+    showLoader(false);
+
+    let listHtml = '';
+    if (list.length === 0) {
+      listHtml = `
+        <div style="text-align:center; padding:30px 16px; color:#64748b; font-size:13px;">
+          ยังไม่มีการบันทึกหลังสอนในแผนนี้
+        </div>`;
+    } else {
+      listHtml = list.map(ref => {
+        const isLocked = ref.is_locked;
+        const lockBadge = isLocked 
+          ? `<span class="status-badge status-approved">${svg('lock', 11)} สมบูรณ์ (ล็อก)</span>` 
+          : `<span class="status-badge status-draft">${svg('edit', 11)} ฉบับร่าง</span>`;
+
+        // สิทธิ์ปลดล็อก: หัวหน้ากลุ่มสาระ, ฝ่ายวิชาการ, Admin (และไม่ใช่ผู้สอนเอง)
+        const isReviewerOrAdmin = ['Academic', 'Admin', 'Director', 'Head'].includes(state.teacher.role);
+
+        return `
+          <div style="border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:12px; background:#ffffff;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:8px;">
+              <div>
+                <div style="font-weight:700; font-size:14px; color:#0f172a;">
+                  วันที่สอน: ${formatDate(ref.teach_date)}
+                </div>
+                <div style="font-size:12px; color:#64748b; margin-top:2px;">
+                  มาเรียน: <strong>${ref.present_students}/${ref.total_students}</strong> คน • บรรลุ: <strong>${ref.passed_students}</strong> คน (<span style="color:#15803d; font-weight:700;">${ref.passed_pct}%</span>)
+                </div>
+              </div>
+              <div>${lockBadge}</div>
+            </div>
+
+            <div style="background:#f8fafc; border-radius:6px; padding:10px; font-size:12.5px; color:#334155; margin-bottom:10px;">
+              <div><strong>ผลการสอน:</strong> ${esc(ref.outcomes)}</div>
+              ${ref.problems ? `<div style="margin-top:4px;"><strong>ปัญหา:</strong> ${esc(ref.problems)}</div>` : ''}
+              ${ref.solutions ? `<div style="margin-top:4px;"><strong>แนวทางพัฒนา:</strong> ${esc(ref.solutions)}</div>` : ''}
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:8px;">
+              ${!isLocked ? `
+                <button class="btn-primary" style="padding:6px 12px; font-size:12px;" onclick='openReflectionModal("${planId}", "${esc(unitTitle)}", ${JSON.stringify(ref)})'>
+                  ${svg('edit', 12)} <span>แก้ไขร่าง</span>
+                </button>
+              ` : `
+                ${isReviewerOrAdmin ? `
+                  <button class="btn-secondary" style="padding:6px 12px; font-size:12px; color:#b45309;" onclick='promptUnlockReflection("${ref.reflection_id}", "${formatDate(ref.teach_date)}", "${planId}", "${esc(unitTitle)}")'>
+                    ${svg('unlock', 12)} <span>ปลดล็อกให้แก้ไข</span>
+                  </button>
+                ` : `
+                  <span style="font-size:11.5px; color:#94a3b8; display:flex; align-items:center; gap:4px;">
+                    ${svg('lock', 11)} ล็อกแล้ว (ติดต่อวิชาการเพื่อปลดล็อก)
+                  </span>
+                `}
+              `}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    const content = `
+      <div class="modal-header">
+        <div class="modal-title">บันทึกหลังสอนทั้งหมด</div>
+        <button class="modal-close-btn" onclick="closeModal()">${svg('x', 18)}</button>
+      </div>
+      <div style="background:#f1f5f9; padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:14px; border:1px solid #e2e8f0;">
+        <strong>หน่วยการเรียนรู้:</strong> ${esc(unitTitle)}
+      </div>
+      <div style="max-height:420px; overflow-y:auto; padding-right:4px;">
+        ${listHtml}
+      </div>
+      <div style="margin-top:16px; display:flex; justify-content:space-between;">
+        <button class="btn-primary" onclick='openReflectionModal("${planId}", "${esc(unitTitle)}")'>
+          ${svg('plus', 14)} <span>เพิ่มวันสอนใหม่</span>
+        </button>
+        <button class="btn-secondary" onclick="closeModal()">ปิด</button>
+      </div>
+    `;
+
+    showModal(content);
+
+  } catch (err) {
+    showLoader(false);
+    Swal.fire('ข้อผิดพลาด', err.message, 'error');
+  }
+}
+
+// Modal บันทึกหลังสอน (เพิ่มใหม่ หรือ แก้ไขฉบับร่าง)
+function openReflectionModal(planId, unitTitle, existing) {
   const today = new Date().toISOString().split('T')[0];
+  const refId = existing ? existing.reflection_id : '';
+  const dateVal = existing && existing.teach_date ? new Date(existing.teach_date).toISOString().split('T')[0] : today;
+  const totalVal = existing ? existing.total_students : '';
+  const presentVal = existing ? existing.present_students : '';
+  const passedVal = existing ? existing.passed_students : '';
+  const outcomesVal = existing ? existing.outcomes : '';
+  const problemsVal = existing ? existing.problems : '';
+  const solutionsVal = existing ? existing.solutions : '';
 
   const content = `
     <div class="modal-header">
-      <div class="modal-title">บันทึกผลการจัดการเรียนรู้</div>
+      <div class="modal-title">${existing ? 'แก้ไขบันทึกหลังสอน' : 'เพิ่มบันทึกผลการจัดการเรียนรู้'}</div>
       <button class="modal-close-btn" onclick="closeModal()">${svg('x', 18)}</button>
     </div>
     <div style="margin-bottom:12px; font-size:13px; color:#475569; background:#f8fafc; padding:8px 12px; border-radius:8px; border:1px solid #e2e8f0;">
       <strong>หน่วย:</strong> ${esc(unitTitle)}
     </div>
     <form id="reflection-form">
+      <input type="hidden" id="ref-id" value="${esc(refId)}"/>
       <div class="form-group">
         <label class="form-label">วันที่สอนจริง *</label>
-        <input type="date" id="ref-date" class="form-input" value="${today}" max="${today}" required/>
+        <input type="date" id="ref-date" class="form-input" value="${dateVal}" max="${today}" required/>
       </div>
       <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
         <div class="form-group">
-          <label class="form-label">นร. ทั้งหมด</label>
-          <input type="number" id="ref-total" class="form-input" min="1" placeholder="35" required/>
+          <label class="form-label">นร. ทั้งหมด *</label>
+          <input type="number" id="ref-total" class="form-input" min="1" placeholder="35" value="${esc(totalVal)}" oninput="calcPassedPct()" required/>
         </div>
         <div class="form-group">
-          <label class="form-label">มาเรียน</label>
-          <input type="number" id="ref-present" class="form-input" min="0" placeholder="34" required/>
+          <label class="form-label">มาเรียน *</label>
+          <input type="number" id="ref-present" class="form-input" min="0" placeholder="34" value="${esc(presentVal)}" oninput="calcPassedPct()" required/>
         </div>
         <div class="form-group">
-          <label class="form-label">บรรลุเป้าหมาย</label>
-          <input type="number" id="ref-passed" class="form-input" min="0" placeholder="30" required/>
+          <label class="form-label">บรรลุเป้าหมาย *</label>
+          <input type="number" id="ref-passed" class="form-input" min="0" placeholder="30" value="${esc(passedVal)}" oninput="calcPassedPct()" required/>
         </div>
       </div>
+      <div id="passed-pct-badge" style="font-size:12px; font-weight:700; color:#15803d; background:#f0fdf4; padding:6px 10px; border-radius:6px; margin-bottom:12px; border:1px solid #bbf7d0;">
+        อัตราบรรลุจุดประสงค์: 0.0% (คำนวณจากผู้มาเรียนจริง)
+      </div>
+
       <div class="form-group">
         <label class="form-label">ผลการจัดการเรียนรู้ *</label>
-        <textarea id="ref-outcomes" class="form-textarea" rows="2" placeholder="นักเรียนส่วนใหญ่มีความเข้าใจและปฏิบัติได้..." required></textarea>
+        <textarea id="ref-outcomes" class="form-textarea" rows="2" placeholder="นักเรียนส่วนใหญ่มีความเข้าใจและปฏิบัติกิจกรรมได้ตามจุดประสงค์..." required>${esc(outcomesVal)}</textarea>
       </div>
       <div class="form-group">
         <label class="form-label">ปัญหา / อุปสรรค</label>
-        <textarea id="ref-problems" class="form-textarea" rows="2" placeholder="มีนักเรียน 3 คนยังสับสนเรื่องขั้นตอน..."></textarea>
+        <textarea id="ref-problems" class="form-textarea" rows="2" placeholder="มีนักเรียนบางคนยังสับสนขั้นตอน...">${esc(problemsVal)}</textarea>
       </div>
       <div class="form-group">
         <label class="form-label">ข้อเสนอแนะ / แนวทางแก้ไข</label>
-        <textarea id="ref-solutions" class="form-textarea" rows="2" placeholder="จัดกิจกรรมทบทวนเพิ่มเติมในคาบถัดไป..."></textarea>
+        <textarea id="ref-solutions" class="form-textarea" rows="2" placeholder="จัดกิจกรรมทบทวนเพิ่มเติมในคาบถัดไป...">${esc(solutionsVal)}</textarea>
       </div>
-      <div style="margin-top:16px;">
-        <button type="button" class="btn-primary" style="width:100%; justify-content:center; padding:12px;" onclick="submitReflection('${planId}')">
-          ${svg('lock', 14)} <span>ยืนยันบันทึกสมบูรณ์</span>
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button type="button" class="btn-secondary" style="flex:1; justify-content:center;" onclick="submitReflection('${planId}', false)">
+          ${svg('save', 14)} <span>บันทึกร่าง</span>
+        </button>
+        <button type="button" class="btn-primary" style="flex:1; justify-content:center;" onclick="submitReflection('${planId}', true)">
+          ${svg('lock', 14)} <span>ยืนยันสมบูรณ์</span>
         </button>
       </div>
     </form>
   `;
 
   showModal(content);
+  calcPassedPct();
 }
 
-async function submitReflection(planId) {
+function calcPassedPct() {
+  const presentEl = document.getElementById('ref-present');
+  const passedEl = document.getElementById('ref-passed');
+  const badgeEl = document.getElementById('passed-pct-badge');
+  if (!presentEl || !passedEl || !badgeEl) return;
+
+  const present = parseFloat(presentEl.value) || 0;
+  const passed = parseFloat(passedEl.value) || 0;
+
+  if (present <= 0) {
+    badgeEl.innerText = 'อัตราบรรลุจุดประสงค์: 0.0% (คำนวณจากผู้มาเรียนจริง)';
+    badgeEl.style.color = '#64748b';
+    return;
+  }
+
+  const pct = ((passed / present) * 100).toFixed(1);
+  badgeEl.innerText = `อัตราบรรลุจุดประสงค์: ${pct}% (คิดจากนักเรียนที่มาเรียน ${present} คน)`;
+  badgeEl.style.color = pct >= 80 ? '#15803d' : pct >= 50 ? '#b45309' : '#dc2626';
+}
+
+async function submitReflection(planId, isLocked) {
+  const refId = document.getElementById('ref-id').value;
   const teachDate = document.getElementById('ref-date').value;
   const total = parseInt(document.getElementById('ref-total').value, 10);
   const present = parseInt(document.getElementById('ref-present').value, 10);
@@ -878,7 +1010,7 @@ async function submitReflection(planId) {
   const solutions = document.getElementById('ref-solutions').value.trim();
 
   if (!teachDate || isNaN(total) || isNaN(present) || isNaN(passed) || !outcomes) {
-    Swal.fire('กรุณากรอกข้อมูลให้ครบ', 'กรอกวันที่ ยอดนักเรียน และผลการสอน', 'warning');
+    Swal.fire('กรุณากรอกข้อมูลให้ครบ', 'กรอกวันที่ ยอดนักเรียน และผลการจัดการเรียนรู้', 'warning');
     return;
   }
 
@@ -892,10 +1024,11 @@ async function submitReflection(planId) {
   }
 
   closeModal();
-  showLoader(true, 'กำลังบันทึกข้อมูล...');
+  showLoader(true, isLocked ? 'กำลังยืนยันบันทึกสมบูรณ์...' : 'กำลังบันทึกฉบับร่าง...');
 
   try {
     await api.saveReflection({
+      reflectionId: refId || '',
       planId: planId,
       teachDate: teachDate,
       totalStudents: total,
@@ -904,16 +1037,64 @@ async function submitReflection(planId) {
       outcomes: outcomes,
       problems: problems,
       solutions: solutions,
-      isLocked: true,
+      isLocked: isLocked,
       lineUserId: state.teacher.lineUserId
     });
 
-    Swal.fire('บันทึกสำเร็จ', 'บันทึกหลังสอนของท่านถูกจัดเก็บเรียบร้อยแล้ว', 'success');
+    Swal.fire({
+      icon: 'success',
+      title: isLocked ? 'ยืนยันบันทึกสมบูรณ์แล้ว' : 'บันทึกฉบับร่างสำเร็จ',
+      text: isLocked ? 'บันทึกถูกล็อกตามระเบียบเรียบร้อยแล้ว' : 'คุณสามารถกลับมาแก้ไขได้ตลอดเวลา',
+      confirmButtonColor: '#1e3a8a'
+    }).then(() => {
+      // รีเฟรชแท็บบันทึกหลังสอน
+      renderCurrentTab();
+    });
+
   } catch (err) {
     Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
   } finally {
     showLoader(false);
   }
+}
+
+// ฟังก์ชันขอปลดล็อกบันทึกสมบูรณ์ (โดยผู้ตรวจ/วิชาการ)
+function promptUnlockReflection(reflectionId, teachDateStr, planId, unitTitle) {
+  Swal.fire({
+    title: 'ขอปลดล็อกบันทึกหลังสอน',
+    text: `ต้องการปลดล็อกบันทึกประจำวันที่ ${teachDateStr} หรือไม่?`,
+    input: 'textarea',
+    inputLabel: 'ระบุเหตุผลในการขอปลดล็อกแก้ไข *',
+    inputPlaceholder: 'เช่น ครูขอปรับปรุงยอดนักเรียนที่มาเรียนจริง...',
+    inputValidator: (value) => {
+      if (!value || !value.trim()) {
+        return 'กรุณาระบุเหตุผลในการปลดล็อกด้วยครับ';
+      }
+    },
+    showCancelButton: true,
+    confirmButtonText: 'ยืนยันปลดล็อก',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#1e3a8a'
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      showLoader(true, 'กำลังปลดล็อกบันทึก...');
+      try {
+        await api.unlockReflection({
+          reflectionId: reflectionId,
+          reason: result.value.trim(),
+          lineUserId: state.teacher.lineUserId
+        });
+
+        Swal.fire('ปลดล็อกเรียบร้อย', 'ครูผู้สอนสามารถเข้าไปแก้ไขบันทึกได้แล้ว', 'success').then(() => {
+          openPlanReflectionsListModal(planId, unitTitle);
+        });
+      } catch (err) {
+        Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+      } finally {
+        showLoader(false);
+      }
+    }
+  });
 }
 
 // --------------------------------------------------------------------------
