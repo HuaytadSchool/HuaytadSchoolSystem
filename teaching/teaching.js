@@ -33,6 +33,10 @@ const ICONS = {
   download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
   calendar: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
   alert: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  printer: '<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>',
+  barChart: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+  search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  filter: '<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>',
   arrowRight: '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>'
 };
@@ -53,7 +57,12 @@ let state = {
   selectedLoad: null,
   selectedPlan: null,
   uploadedBase64: null,
-  uploadedFileName: null
+  uploadedFileName: null,
+  reportsData: null,
+  reportFilterTerm: '',
+  reportFilterRound: '',
+  reportFilterGroup: '',
+  reportSubView: 'plans'
 };
 
 // API Call Proxy (แบบเดียวกับระบบลาของโรงเรียน)
@@ -233,6 +242,8 @@ function renderCurrentTab() {
     renderReviews(container);
   } else if (state.activeTab === 'manage') {
     renderManage(container);
+  } else if (state.activeTab === 'reports') {
+    renderReports(container);
   }
 }
 
@@ -1314,6 +1325,9 @@ async function openPlanReflectionsListModal(planId, unitTitle) {
             </div>
 
             <div style="display:flex; justify-content:flex-end; gap:8px;">
+              <button class="btn-secondary" style="padding:6px 12px; font-size:12px;" onclick='printReflectionDirect(${JSON.stringify(ref)}, "${planId}", "${esc(unitTitle)}")'>
+                ${svg('printer', 12)} <span>พิมพ์ A4</span>
+              </button>
               ${!isLocked ? `
                 <button class="btn-primary" style="padding:6px 12px; font-size:12px;" onclick='openReflectionModal("${planId}", "${esc(unitTitle)}", ${JSON.stringify(ref)})'>
                   ${svg('edit', 12)} <span>แก้ไขร่าง</span>
@@ -1609,4 +1623,901 @@ function esc(str) {
   return String(str || '').replace(/[&<>"']/g, m => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
   })[m]);
+}
+
+// ============================================================================
+// Module 6: Reports, Analytics, CSV Export & A4 Printing
+// โรงเรียนบ้านห้วยตาด (100% Emoji-Free)
+// ============================================================================
+
+/**
+ * โหลดข้อมูลรายงานและสถิติจากเซิร์ฟเวอร์
+ */
+async function loadReportData() {
+  const lineUserId = state.currentLineProfile ? state.currentLineProfile.userId : 'mock_line_user_id';
+  const data = await api.getTeachingReport(
+    lineUserId,
+    state.reportFilterTerm || '',
+    state.reportFilterRound || '',
+    state.reportFilterGroup || ''
+  );
+  state.reportsData = data;
+  if (!state.reportFilterTerm && data.activeTermId) {
+    state.reportFilterTerm = data.activeTermId;
+  }
+}
+
+/**
+ * แสดงผลแท็บรายงานและสถิติ
+ */
+async function renderReports(container) {
+  if (!state.reportsData) {
+    showLoader(true, 'กำลังโหลดข้อมูลรายงานและสถิติ...');
+    try {
+      await loadReportData();
+    } catch (err) {
+      showLoader(false);
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">${svg('alert', 40, 1.5)}</div>
+          <p style="margin-top:10px; color:#dc2626;">ไม่สามารถโหลดข้อมูลรายงานได้</p>
+          <small class="text-muted">${esc(err.message)}</small>
+          <div style="margin-top:16px;">
+            <button class="btn btn-primary" onclick="renderReports(document.getElementById('tab-content'))">
+              ${svg('refresh', 14)} ลองใหม่อีกครั้ง
+            </button>
+          </div>
+        </div>
+      `;
+      return;
+    } finally {
+      showLoader(false);
+    }
+  }
+
+  const d = state.reportsData;
+  const s = d.summary || {};
+  const currentSubView = state.reportSubView || 'plans';
+
+  // สรุปข้อมูลตัวเลือกตัวกรอง
+  const termOptions = (d.terms || []).map(t => 
+    `<option value="${esc(t.termId)}" ${String(t.termId) === String(state.reportFilterTerm) ? 'selected' : ''}>ภาคเรียนที่ ${esc(t.termName)} ${t.isActive ? '(ปัจจุบัน)' : ''}</option>`
+  ).join('');
+
+  const roundOptions = `<option value="">-- ทุกรอบการส่ง --</option>` + (d.rounds || []).map(r => 
+    `<option value="${esc(r.roundId)}" ${String(r.roundId) === String(state.reportFilterRound) ? 'selected' : ''}>${esc(r.title)} ${r.isOpen ? '(เปิดรับ)' : ''}</option>`
+  ).join('');
+
+  const groupOptions = `<option value="">-- ทุกกลุ่มสาระการเรียนรู้ --</option>` + (d.subjectGroups || []).map(g => 
+    `<option value="${esc(g.groupId)}" ${String(g.groupId) === String(state.reportFilterGroup) ? 'selected' : ''}>${esc(g.name)}</option>`
+  ).join('');
+
+  let html = `
+    <!-- Header รายงาน -->
+    <div style="margin-bottom:16px;">
+      <h2 style="font-size:18px; font-weight:800; color:var(--primary); margin-bottom:2px;">
+        รายงาน & สถิติการจัดการเรียนรู้
+      </h2>
+      <p style="font-size:12.5px; color:var(--text-muted);">
+        โรงเรียนบ้านห้วยตาด · ทะเบียนติดตามการส่งแผนและบันทึกหลังสอน
+      </p>
+    </div>
+
+    <!-- แถบตัวกรองข้อมูล -->
+    <div class="report-filter-bar no-print">
+      <div class="filter-group">
+        <label class="filter-label">ภาคเรียน / ปีการศึกษา</label>
+        <select id="report-filter-term" class="filter-select" onchange="onFilterReportChange()">
+          ${termOptions}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">รอบการส่งแผน</label>
+        <select id="report-filter-round" class="filter-select" onchange="onFilterReportChange()">
+          ${roundOptions}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">กลุ่มสาระการเรียนรู้</label>
+        <select id="report-filter-group" class="filter-select" onchange="onFilterReportChange()">
+          ${groupOptions}
+        </select>
+      </div>
+      <div>
+        <button class="btn btn-secondary" onclick="onFilterReportChange()" style="height:38px;">
+          ${svg('refresh', 14)} รีเฟรช
+        </button>
+      </div>
+    </div>
+
+    <!-- การ์ดตัวชี้วัดและสถิติภาพรวม (6 Cards) -->
+    <div class="metrics-grid">
+      <div class="metric-card highlight-blue">
+        <span class="metric-label">ภาระสอนทั้งหมด</span>
+        <span class="metric-num">${s.totalLoads || 0}</span>
+        <span class="metric-sub">รายวิชา/ห้องเรียน</span>
+      </div>
+      <div class="metric-card highlight-purple">
+        <span class="metric-label">ส่งแผนแล้ว</span>
+        <span class="metric-num">${s.submittedPlans || 0} / ${s.totalPlans || 0}</span>
+        <span class="metric-sub">คิดเป็น ${s.submissionRate || 0}% ของทั้งหมด</span>
+      </div>
+      <div class="metric-card highlight-yellow">
+        <span class="metric-label">รอหัวหน้าตรวจ</span>
+        <span class="metric-num">${s.pendingHead || 0}</span>
+        <span class="metric-sub">แผนการสอน</span>
+      </div>
+      <div class="metric-card highlight-cyan">
+        <span class="metric-label">รอวิชาการตรวจ</span>
+        <span class="metric-num">${s.pendingAcademic || 0}</span>
+        <span class="metric-sub">แผนการสอน</span>
+      </div>
+      <div class="metric-card highlight-green">
+        <span class="metric-label">อนุมัติแล้ว</span>
+        <span class="metric-num">${s.approved || 0}</span>
+        <span class="metric-sub">คิดเป็น ${s.approvedRate || 0}% ของทั้งหมด</span>
+      </div>
+      <div class="metric-card highlight-red">
+        <span class="metric-label">ค้างส่งเกินกำหนด</span>
+        <span class="metric-num">${s.overdue || 0}</span>
+        <span class="metric-sub">${s.revision || 0} แผนรอแก้ไข</span>
+      </div>
+    </div>
+
+    <!-- แถบสลับมุมมอง & เครื่องมือส่งออกข้อมูล -->
+    <div class="action-toolbar no-print">
+      <div class="subview-tabs">
+        <button class="subview-btn ${currentSubView === 'plans' ? 'active' : ''}" onclick="setReportSubView('plans')">
+          ${svg('fileText', 14)} ทะเบียนส่งแผน (${(d.plans || []).length})
+        </button>
+        <button class="subview-btn ${currentSubView === 'reflections' ? 'active' : ''}" onclick="setReportSubView('reflections')">
+          ${svg('edit', 14)} บันทึกหลังสอน (${(d.reflections || []).length})
+        </button>
+      </div>
+
+      <div class="export-btns">
+        <button class="btn btn-secondary" onclick="exportCurrentCSV()" title="ส่งออกเป็นไฟล์ CSV สำหรับ Excel">
+          ${svg('download', 14)} ส่งออก CSV
+        </button>
+        <button class="btn btn-primary" onclick="printSummaryReport()" title="พิมพ์แบบสรุปทางการขนาด A4">
+          ${svg('printer', 14)} พิมพ์สรุป A4
+        </button>
+      </div>
+    </div>
+  `;
+
+  // แสดงผลตารางตาม SubView
+  if (currentSubView === 'plans') {
+    html += renderPlansReportTable(d.plans || []);
+  } else {
+    html += renderReflectionsReportTable(d.reflections || []);
+  }
+
+  container.innerHTML = html;
+}
+
+/**
+ * เปลี่ยนตัวกรองข้อมูลรายงาน
+ */
+async function onFilterReportChange() {
+  const termEl = document.getElementById('report-filter-term');
+  const roundEl = document.getElementById('report-filter-round');
+  const groupEl = document.getElementById('report-filter-group');
+
+  if (termEl) state.reportFilterTerm = termEl.value;
+  if (roundEl) state.reportFilterRound = roundEl.value;
+  if (groupEl) state.reportFilterGroup = groupEl.value;
+
+  showLoader(true, 'กำลังปรับปรุงข้อมูลรายงาน...');
+  try {
+    await loadReportData();
+  } catch (err) {
+    Swal.fire({
+      icon: 'error',
+      title: 'ปรับปรุงข้อมูลไม่สำเร็จ',
+      text: err.message,
+      confirmButtonColor: '#1e3a8a'
+    });
+  } finally {
+    showLoader(false);
+    renderReports(document.getElementById('tab-content'));
+  }
+}
+
+/**
+ * สลับมุมมองย่อย (ทะเบียนแผน / บันทึกหลังสอน)
+ */
+function setReportSubView(view) {
+  state.reportSubView = view;
+  renderReports(document.getElementById('tab-content'));
+}
+
+/**
+ * แสดงตารางทะเบียนการส่งแผนการสอน
+ */
+function renderPlansReportTable(plans) {
+  if (plans.length === 0) {
+    return `
+      <div class="empty-state">
+        <div class="empty-icon">${svg('fileText', 40, 1.5)}</div>
+        <p style="margin-top:10px;">ไม่พบข้อมูลแผนการสอนตามเงื่อนไขที่เลือก</p>
+      </div>
+    `;
+  }
+
+  let rows = plans.map((p, idx) => {
+    let overdueBadge = '';
+    if (p.is_overdue) {
+      overdueBadge = `<span class="badge-overdue">${svg('alert', 10)} เกินกำหนด</span>`;
+    }
+
+    let fileBtn = '';
+    if (p.drive_pdf_url) {
+      fileBtn = `<a href="${esc(p.drive_pdf_url)}" target="_blank" class="btn btn-secondary" style="padding:4px 8px; font-size:11.5px; text-decoration:none;">${svg('paperclip', 12)} PDF</a>`;
+    }
+
+    return `
+      <tr>
+        <td style="text-align:center; font-weight:600; color:var(--text-muted);">${idx + 1}</td>
+        <td>
+          <div style="font-weight:700; color:var(--primary);">${esc(p.subject_code)} ${esc(p.subject_name)}</div>
+          <small class="text-muted">${esc(p.classroom)} · ${esc(p.group_name)}</small>
+        </td>
+        <td>
+          <div style="font-weight:600;">${esc(p.teacher_name)}</div>
+          <small class="text-muted">ผู้ตรวจ: ${esc(p.reviewer_name)}</small>
+        </td>
+        <td>
+          <div>${esc(p.unit_title)}</div>
+          <small class="text-muted">${esc(p.round_title)} (ฉบับที่ ${p.version})</small>
+        </td>
+        <td style="text-align:center;">
+          ${getStatusBadge(p.status)}
+          ${overdueBadge ? `<div style="margin-top:3px;">${overdueBadge}</div>` : ''}
+        </td>
+        <td style="font-size:12px;">
+          <div>กำหนด: ${p.round_end_date ? formatDate(p.round_end_date) : '-'}</div>
+          <div class="text-muted">ส่งเมื่อ: ${esc(p.submitted_at)}</div>
+        </td>
+        <td style="text-align:center; white-space:nowrap;">
+          <div style="display:inline-flex; gap:4px;">
+            ${fileBtn}
+            <button class="btn btn-secondary" onclick="printPlanSheet('${esc(p.plan_id)}')" style="padding:4px 8px; font-size:11.5px;" title="พิมพ์ทะเบียนแผนฉบับนี้">
+              ${svg('printer', 12)}
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  return `
+    <div class="table-container">
+      <table class="report-table">
+        <thead>
+          <tr>
+            <th style="width:40px; text-align:center;">ที่</th>
+            <th>รายวิชา / ระดับชั้น</th>
+            <th>ครูผู้สอน / ผู้ตรวจ</th>
+            <th>หน่วย / แผนการสอน</th>
+            <th style="text-align:center;">สถานะ</th>
+            <th>กำหนดส่ง / วันที่ส่ง</th>
+            <th style="text-align:center;">การจัดการ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+/**
+ * แสดงตารางสรุปบันทึกหลังสอน
+ */
+function renderReflectionsReportTable(reflections) {
+  if (reflections.length === 0) {
+    return `
+      <div class="empty-state">
+        <div class="empty-icon">${svg('edit', 40, 1.5)}</div>
+        <p style="margin-top:10px;">ไม่พบข้อมูลบันทึกหลังสอนตามเงื่อนไขที่เลือก</p>
+      </div>
+    `;
+  }
+
+  let rows = reflections.map((rf, idx) => {
+    let pctBadgeColor = 'var(--success)';
+    if (rf.achievement_percentage < 50) pctBadgeColor = 'var(--danger)';
+    else if (rf.achievement_percentage < 70) pctBadgeColor = 'var(--warning)';
+
+    let lockBadge = rf.is_locked
+      ? `<span style="display:inline-flex; align-items:center; gap:3px; color:#16a34a; font-size:11.5px; font-weight:700;">${svg('lock', 11)} บันทึกเสร็จสมบูรณ์</span>`
+      : `<span style="display:inline-flex; align-items:center; gap:3px; color:#d97706; font-size:11.5px; font-weight:700;">${svg('unlock', 11)} ยังแก้ไขได้</span>`;
+
+    return `
+      <tr>
+        <td style="text-align:center; font-weight:600; color:var(--text-muted);">${idx + 1}</td>
+        <td>
+          <div style="font-weight:700; color:#1e293b;">${formatDate(rf.taught_date)}</div>
+          <small class="text-muted">${esc(rf.round_title)}</small>
+        </td>
+        <td>
+          <div style="font-weight:700; color:var(--primary);">${esc(rf.subject_code)} ${esc(rf.subject_name)}</div>
+          <small class="text-muted">${esc(rf.classroom)} · ครูผู้สอน: ${esc(rf.teacher_name)}</small>
+        </td>
+        <td>
+          <div style="font-size:12.5px;">มาเรียน: <strong>${rf.present_students}</strong> / ${rf.total_students} คน</div>
+          <div style="font-size:12px; margin-top:2px;">
+            บรรลุเป้าหมาย: <strong style="color:${pctBadgeColor};">${rf.achieved_students} คน (${rf.achievement_percentage}%)</strong>
+          </div>
+        </td>
+        <td style="max-width:240px; font-size:12px;">
+          <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(rf.outcomes)}">
+            <strong>ผล:</strong> ${esc(rf.outcomes) || '-'}
+          </div>
+          <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#64748b; margin-top:2px;" title="${esc(rf.problems)}">
+            <strong>ปัญหา:</strong> ${esc(rf.problems) || '-'}
+          </div>
+        </td>
+        <td style="text-align:center;">
+          ${lockBadge}
+        </td>
+        <td style="text-align:center; white-space:nowrap;">
+          <button class="btn btn-secondary" onclick="printReflectionSheet('${esc(rf.reflection_id)}')" style="padding:4px 8px; font-size:11.5px;" title="พิมพ์บันทึกหลังสอน">
+            ${svg('printer', 12)} พิมพ์ A4
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  return `
+    <div class="table-container">
+      <table class="report-table">
+        <thead>
+          <tr>
+            <th style="width:40px; text-align:center;">ที่</th>
+            <th>วันที่สอน</th>
+            <th>รายวิชา / ผู้สอน</th>
+            <th>สถิตินักเรียน / ร้อยละ</th>
+            <th>ผลการสอน & ปัญหา</th>
+            <th style="text-align:center;">สถานะ</th>
+            <th style="text-align:center;">การจัดการ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// --------------------------------------------------------------------------
+// CSV Export Functions (UTF-8 BOM สำหรับ Microsoft Excel)
+// --------------------------------------------------------------------------
+
+function csvEscape(val) {
+  if (val === null || val === undefined) return '""';
+  let s = String(val).replace(/"/g, '""');
+  // ป้องกัน Formula Injection ในโปรแกรม Spreadsheet
+  if (/^[\s]*[=+@\-\t\r]/.test(s)) {
+    s = "'" + s;
+  }
+  return `"${s}"`;
+}
+
+function downloadCSV(csvContent, fileName) {
+  // ใส่ UTF-8 BOM (\uFEFF) เพื่อให้ Excel ภาษาไทยเปิดได้ถูกต้อง 100% ไม่เป็นภาษาต่างดาว
+  const BOM = "\uFEFF";
+  const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function exportCurrentCSV() {
+  if (state.reportSubView === 'reflections') {
+    exportReflectionsCSV();
+  } else {
+    exportPlansCSV();
+  }
+}
+
+/**
+ * ส่งออก CSV ทะเบียนการส่งแผนการสอน
+ */
+function exportPlansCSV() {
+  if (!state.reportsData || !state.reportsData.plans) {
+    Swal.fire({ icon: 'warning', title: 'ไม่มีข้อมูล', text: 'ไม่พบข้อมูลแผนการสอนสำหรับส่งออก' });
+    return;
+  }
+
+  const plans = state.reportsData.plans;
+  const headers = [
+    'รหัสแผน', 'ภาคเรียน', 'รอบการส่ง', 'กลุ่มสาระการเรียนรู้', 'รหัสวิชา', 'ชื่อวิชา',
+    'ระดับชั้น', 'ครูผู้สอน', 'ชื่อหน่วย/แผน', 'ชั่วโมงสอน', 'ฉบับที่', 'สถานะ',
+    'กำหนดส่ง', 'วันที่ส่ง', 'ผู้ตรวจ (หัวหน้ากลุ่มฯ)', 'ค้างส่งเกินกำหนด',
+    'จำนวนบันทึกหลังสอน', 'ความเห็นล่าสุด'
+  ];
+
+  let csvRows = [];
+  csvRows.push(headers.map(csvEscape).join(','));
+
+  plans.forEach(p => {
+    csvRows.push([
+      p.plan_id,
+      p.term_name,
+      p.round_title,
+      p.group_name,
+      p.subject_code,
+      p.subject_name,
+      p.classroom,
+      p.teacher_name,
+      p.unit_title,
+      p.teaching_hours,
+      p.version,
+      p.status_label,
+      p.round_end_date,
+      p.submitted_at,
+      p.reviewer_name,
+      p.is_overdue ? 'ใช่' : 'ไม่ใช่',
+      p.reflection_count,
+      p.latest_review_note
+    ].map(csvEscape).join(','));
+  });
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  downloadCSV(csvRows.join('\r\n'), `teaching-plans-${todayStr}.csv`);
+}
+
+/**
+ * ส่งออก CSV สรุปบันทึกหลังการจัดการเรียนรู้
+ */
+function exportReflectionsCSV() {
+  if (!state.reportsData || !state.reportsData.reflections) {
+    Swal.fire({ icon: 'warning', title: 'ไม่มีข้อมูล', text: 'ไม่พบข้อมูลบันทึกหลังสอนสำหรับส่งออก' });
+    return;
+  }
+
+  const reflections = state.reportsData.reflections;
+  const headers = [
+    'รหัสบันทึก', 'รหัสแผน', 'รอบการส่ง', 'กลุ่มสาระการเรียนรู้', 'รหัสวิชา', 'ชื่อวิชา',
+    'ระดับชั้น', 'ครูผู้สอน', 'ชื่อหน่วย/แผน', 'วันที่สอน', 'นักเรียนทั้งหมด', 'มาเรียน',
+    'บรรลุเป้าหมาย', 'คิดเป็นร้อยละ', 'ผลการจัดกิจกรรม', 'ปัญหา/อุปสรรค',
+    'แนวทางแก้ไข/พัฒนา', 'สถานะบันทึก', 'วันที่บันทึก'
+  ];
+
+  let csvRows = [];
+  csvRows.push(headers.map(csvEscape).join(','));
+
+  reflections.forEach(rf => {
+    csvRows.push([
+      rf.reflection_id,
+      rf.plan_id,
+      rf.round_title,
+      rf.group_name,
+      rf.subject_code,
+      rf.subject_name,
+      rf.classroom,
+      rf.teacher_name,
+      rf.unit_title,
+      rf.taught_date,
+      rf.total_students,
+      rf.present_students,
+      rf.achieved_students,
+      `${rf.achievement_percentage}%`,
+      rf.outcomes,
+      rf.problems,
+      rf.solutions,
+      rf.is_locked ? 'เสร็จสมบูรณ์' : 'ยังแก้ไขได้',
+      rf.created_at
+    ].map(csvEscape).join(','));
+  });
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  downloadCSV(csvRows.join('\r\n'), `teaching-reflections-${todayStr}.csv`);
+}
+
+// --------------------------------------------------------------------------
+// Official A4 Print Layouts (แบบฟอร์มเอกสารทางการ โรงเรียนบ้านห้วยตาด)
+// --------------------------------------------------------------------------
+
+/**
+ * พิมพ์สรุปรายงานผลการติดตามการจัดทำและส่งแผนการจัดการเรียนรู้ (A4)
+ */
+function printSummaryReport() {
+  if (!state.reportsData) return;
+  const d = state.reportsData;
+  const s = d.summary || {};
+  const plans = d.plans || [];
+
+  const termObj = (d.terms || []).find(t => String(t.termId) === String(state.reportFilterTerm)) || {};
+  const termTitle = termObj.termName ? `ภาคเรียนที่ ${termObj.termName}` : 'ประจำภาคเรียน';
+
+  const rows = plans.map((p, idx) => `
+    <tr>
+      <td style="text-align:center;">${idx + 1}</td>
+      <td style="text-align:center;">${esc(p.subject_code)}</td>
+      <td>${esc(p.subject_name)}</td>
+      <td style="text-align:center;">${esc(p.classroom)}</td>
+      <td>${esc(p.teacher_name)}</td>
+      <td>${esc(p.unit_title)}</td>
+      <td style="text-align:center;">${esc(p.status_label)}</td>
+      <td style="text-align:center;">${p.submitted_at !== '-' ? esc(p.submitted_at.slice(0, 10)) : '-'}</td>
+      <td style="text-align:center;">${p.is_overdue ? 'เกินกำหนด' : 'ปกติ'}</td>
+    </tr>
+  `).join('');
+
+  const todayDateStr = formatDate(new Date().toISOString());
+
+  const printHtml = `
+    <article class="print-document">
+      <header class="print-header">
+        <h1>โรงเรียนบ้านห้วยตาด</h1>
+        <h2>แบบรายงานผลการติดตามการจัดทำและส่งแผนการจัดการเรียนรู้</h2>
+        <p>${termTitle} · ข้อมูล ณ วันที่ ${todayDateStr}</p>
+      </header>
+
+      <div style="font-size:10.5pt; margin-bottom:12px; display:flex; justify-content:space-between;">
+        <div><strong>จำนวนภาระสอนทั้งหมด:</strong> ${s.totalLoads || 0} รายการ</div>
+        <div><strong>ส่งแผนแล้ว:</strong> ${s.submittedPlans || 0} รายการ (${s.submissionRate || 0}%)</div>
+        <div><strong>อนุมัติแล้ว:</strong> ${s.approved || 0} รายการ (${s.approvedRate || 0}%)</div>
+        <div><strong>ค้างส่งเกินกำหนด:</strong> ${s.overdue || 0} รายการ</div>
+      </div>
+
+      <table class="print-table">
+        <thead>
+          <tr>
+            <th style="width:30px;">ที่</th>
+            <th style="width:70px;">รหัสวิชา</th>
+            <th>ชื่อรายวิชา</th>
+            <th style="width:50px;">ชั้น</th>
+            <th style="width:130px;">ครูผู้สอน</th>
+            <th>หน่วย / แผนการสอน</th>
+            <th style="width:90px;">สถานะ</th>
+            <th style="width:75px;">วันที่ส่ง</th>
+            <th style="width:65px;">หมายเหตุ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+
+      <div class="print-signature-section">
+        <div class="print-signature-box">
+          <p>ลงชื่อ ................................................................ ผู้รายงาน</p>
+          <p>( ................................................................ )</p>
+          <p>ตำแหน่ง หัวหน้างานวิชาการ / ผู้รับผิดชอบ</p>
+        </div>
+        <div class="print-signature-box">
+          <p>ลงชื่อ ................................................................ ผู้รับรอง</p>
+          <p>( ................................................................ )</p>
+          <p>ผู้อำนวยการโรงเรียนบ้านห้วยตาด</p>
+        </div>
+      </div>
+
+      <footer class="print-meta-footer">
+        <div>พิมพ์จากระบบ Teaching Space · โรงเรียนบ้านห้วยตาด</div>
+        <div>หน้า 1 จาก 1</div>
+      </footer>
+    </article>
+  `;
+
+  const printArea = document.getElementById('printable-area');
+  printArea.innerHTML = printHtml;
+  window.print();
+}
+
+/**
+ * พิมพ์ทะเบียนแผนการจัดการเรียนรู้ฉบับรายบุคคล (A4)
+ */
+function printPlanSheet(planId) {
+  let plan = null;
+  if (state.reportsData && state.reportsData.plans) {
+    plan = state.reportsData.plans.find(p => String(p.plan_id) === String(planId));
+  }
+  if (!plan && state.loads) {
+    for (const l of state.loads) {
+      const p = (l.plans || []).find(x => String(x.plan_id) === String(planId));
+      if (p) {
+        plan = {
+          plan_id: p.plan_id,
+          subject_code: l.subject_code,
+          subject_name: l.subject_name,
+          classroom: l.classroom,
+          teacher_name: state.teacher.fullName,
+          group_name: l.group_name || '',
+          unit_title: p.unit_title,
+          teaching_hours: p.teaching_hours,
+          version: p.current_version,
+          status_label: p.status,
+          round_title: p.round_title,
+          submitted_at: p.submitted_at || '-',
+          reviewer_name: l.reviewer_name || 'หัวหน้ากลุ่มสาระฯ'
+        };
+        break;
+      }
+    }
+  }
+
+  if (!plan) {
+    Swal.fire({ icon: 'warning', title: 'ไม่พบข้อมูลแผน', text: 'ไม่สามารถค้นหารายละเอียดแผนการสอนได้' });
+    return;
+  }
+
+  const todayDateStr = formatDate(new Date().toISOString());
+
+  const printHtml = `
+    <article class="print-document">
+      <header class="print-header">
+        <h1>โรงเรียนบ้านห้วยตาด</h1>
+        <h2>ทะเบียนแผนการจัดการเรียนรู้และการตรวจรับรอง</h2>
+        <p>รหัสแผนงาน: ${esc(plan.plan_id)} · ฉบับที่ ${plan.version}</p>
+      </header>
+
+      <div style="font-size:11.5pt; line-height:1.8; margin-bottom:18px;">
+        <div><strong>รายวิชา:</strong> ${esc(plan.subject_code)} ${esc(plan.subject_name)} &nbsp;&nbsp;&nbsp; <strong>ระดับชั้น:</strong> ${esc(plan.classroom)}</div>
+        <div><strong>กลุ่มสาระการเรียนรู้:</strong> ${esc(plan.group_name || '-')}</div>
+        <div><strong>ครูผู้สอน:</strong> ${esc(plan.teacher_name)}</div>
+        <div><strong>ชื่อหน่วยการเรียนรู้/แผน:</strong> ${esc(plan.unit_title)}</div>
+        <div><strong>จำนวนชั่วโมงสอน:</strong> ${plan.teaching_hours || 0} ชั่วโมง &nbsp;&nbsp;&nbsp; <strong>รอบการส่ง:</strong> ${esc(plan.round_title)}</div>
+        <div><strong>สถานะการตรวจสอบ:</strong> ${esc(plan.status_label)} &nbsp;&nbsp;&nbsp; <strong>วันที่ส่ง:</strong> ${esc(plan.submitted_at)}</div>
+      </div>
+
+      <div class="print-section-title">ผลการตรวจสอบและการประเมิน</div>
+      <table class="print-table" style="margin-top:8px;">
+        <thead>
+          <tr>
+            <th style="width:140px;">ขั้นตอนการตรวจ</th>
+            <th style="width:180px;">ผู้ตรวจ</th>
+            <th>ความคิดเห็นและข้อเสนอแนะ</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="text-align:center;">หัวหน้ากลุ่มสาระการเรียนรู้</td>
+            <td>${esc(plan.reviewer_name)}</td>
+            <td>${esc(plan.latest_review_note) || 'เห็นควรอนุมัติให้ใช้จัดการเรียนรู้ได้'}</td>
+          </tr>
+          <tr>
+            <td style="text-align:center;">ฝ่ายวิชาการ / ผู้อำนวยการ</td>
+            <td>ผู้อำนวยการโรงเรียนบ้านห้วยตาด</td>
+            <td>อนุมัติให้ใช้ในการจัดการเรียนรู้ตามหลักสูตรสถานศึกษา</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="print-signature-section" style="margin-top:40px;">
+        <div class="print-signature-box">
+          <p>ลงชื่อ ................................................................ ผู้สอน</p>
+          <p>( ${esc(plan.teacher_name)} )</p>
+          <p>ตำแหน่ง ครูผู้สอน</p>
+        </div>
+        <div class="print-signature-box">
+          <p>ลงชื่อ ................................................................ ผู้ตรวจรับรอง</p>
+          <p>( ................................................................ )</p>
+          <p>หัวหน้ากลุ่มสาระการเรียนรู้ / ฝ่ายวิชาการ</p>
+        </div>
+      </div>
+
+      <footer class="print-meta-footer" style="margin-top:50px;">
+        <div>พิมพ์จากระบบ Teaching Space · โรงเรียนบ้านห้วยตาด (${todayDateStr})</div>
+        <div>หน้า 1 จาก 1</div>
+      </footer>
+    </article>
+  `;
+
+  const printArea = document.getElementById('printable-area');
+  printArea.innerHTML = printHtml;
+  window.print();
+}
+
+/**
+ * พิมพ์แบบบันทึกหลังการจัดกิจกรรมการเรียนรู้ (A4) พร้อมช่องลงนามทางการ
+ */
+function printReflectionSheet(reflectionId) {
+  let rf = null;
+  if (state.reportsData && state.reportsData.reflections) {
+    rf = state.reportsData.reflections.find(x => String(x.reflection_id) === String(reflectionId));
+  }
+
+  if (!rf) {
+    Swal.fire({ icon: 'warning', title: 'ไม่พบข้อมูลบันทึก', text: 'ไม่สามารถค้นหารายละเอียดบันทึกหลังสอนได้' });
+    return;
+  }
+
+  const todayDateStr = formatDate(new Date().toISOString());
+
+  const printHtml = `
+    <article class="print-document">
+      <header class="print-header">
+        <h1>โรงเรียนบ้านห้วยตาด</h1>
+        <h2>แบบบันทึกหลังการจัดกิจกรรมการเรียนรู้</h2>
+        <p>กลุ่มสาระการเรียนรู้ ${esc(rf.group_name || '-')} · โรงเรียนบ้านห้วยตาด</p>
+      </header>
+
+      <div style="font-size:11.5pt; line-height:1.75; margin-bottom:14px;">
+        <div><strong>รายวิชา:</strong> ${esc(rf.subject_code)} ${esc(rf.subject_name)} &nbsp;&nbsp;&nbsp; <strong>ระดับชั้น:</strong> ${esc(rf.classroom)}</div>
+        <div><strong>ชื่อหน่วยการเรียนรู้:</strong> ${esc(rf.unit_title)}</div>
+        <div><strong>ครูผู้สอน:</strong> ${esc(rf.teacher_name)} &nbsp;&nbsp;&nbsp; <strong>วันที่ทำการสอน:</strong> ${formatDate(rf.taught_date)}</div>
+      </div>
+
+      <div class="print-section-title">1. สถิติจำนวนนักเรียนและการบรรลุจุดประสงค์การเรียนรู้</div>
+      <table class="print-table" style="text-align:center;">
+        <thead>
+          <tr>
+            <th>นักเรียนทั้งหมด (คน)</th>
+            <th>มาเรียน (คน)</th>
+            <th>ขาดเรียน (คน)</th>
+            <th>บรรลุจุดประสงค์ (คน)</th>
+            <th>คิดเป็นร้อยละ (%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>${rf.total_students}</td>
+            <td>${rf.present_students}</td>
+            <td>${Math.max(0, rf.total_students - rf.present_students)}</td>
+            <td><strong>${rf.achieved_students}</strong></td>
+            <td><strong style="font-size:11pt;">${rf.achievement_percentage}%</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="print-section-title">2. ผลการจัดกิจกรรมการเรียนรู้</div>
+      <div style="font-size:11pt; padding:6px 10px; border:1px solid #000; min-height:60px; line-height:1.6; white-space:pre-wrap; margin-bottom:12px;">
+        ${esc(rf.outcomes) || 'ไม่มีการระบุ'}
+      </div>
+
+      <div class="print-section-title">3. ปัญหาและอุปสรรค</div>
+      <div style="font-size:11pt; padding:6px 10px; border:1px solid #000; min-height:50px; line-height:1.6; white-space:pre-wrap; margin-bottom:12px;">
+        ${esc(rf.problems) || 'ไม่มีปัญหาและอุปสรรคในการจัดกิจกรรมการเรียนรู้'}
+      </div>
+
+      <div class="print-section-title">4. ข้อเสนอแนะและแนวทางแก้ไข / พัฒนา</div>
+      <div style="font-size:11pt; padding:6px 10px; border:1px solid #000; min-height:50px; line-height:1.6; white-space:pre-wrap; margin-bottom:20px;">
+        ${esc(rf.solutions) || 'ไม่มีการระบุ'}
+      </div>
+
+      <div class="print-signature-section" style="margin-top:30px;">
+        <div class="print-signature-box">
+          <p>ลงชื่อ ................................................................ ผู้สอน</p>
+          <p>( ${esc(rf.teacher_name)} )</p>
+          <p>ตำแหน่ง ครูผู้สอน</p>
+        </div>
+        <div class="print-signature-box">
+          <p>ลงชื่อ ................................................................ ผู้รับทราบ</p>
+          <p>( ................................................................ )</p>
+          <p>หัวหน้ากลุ่มสาระการเรียนรู้ / หัวหน้าฝ่ายวิชาการ</p>
+        </div>
+      </div>
+
+      <footer class="print-meta-footer" style="margin-top:35px;">
+        <div>พิมพ์จากระบบ Teaching Space · โรงเรียนบ้านห้วยตาด (${todayDateStr})</div>
+        <div>หน้า 1 จาก 1</div>
+      </footer>
+    </article>
+  `;
+
+  const printArea = document.getElementById('printable-area');
+  printArea.innerHTML = printHtml;
+  window.print();
+}
+
+/**
+ * พิมพ์แบบบันทึกหลังสอนโดยตรงจากหน้าต่างรายการ (Modal)
+ */
+function printReflectionDirect(ref, planId, unitTitle) {
+  let load = null;
+  if (state.loads) {
+    for (const l of state.loads) {
+      if ((l.plans || []).some(p => String(p.plan_id) === String(planId))) {
+        load = l;
+        break;
+      }
+    }
+  }
+
+  const rf = {
+    reflection_id: ref.reflection_id,
+    group_name: load ? load.group_name : '',
+    subject_code: load ? load.subject_code : '',
+    subject_name: load ? load.subject_name : '',
+    classroom: load ? load.classroom : '',
+    unit_title: unitTitle,
+    teacher_name: state.teacher ? state.teacher.fullName : 'ครูผู้สอน',
+    taught_date: ref.teach_date,
+    total_students: ref.total_students,
+    present_students: ref.present_students,
+    achieved_students: ref.passed_students,
+    achievement_percentage: ref.passed_pct,
+    outcomes: ref.outcomes,
+    problems: ref.problems,
+    solutions: ref.solutions
+  };
+
+  const todayDateStr = formatDate(new Date().toISOString());
+
+  const printHtml = `
+    <article class="print-document">
+      <header class="print-header">
+        <h1>โรงเรียนบ้านห้วยตาด</h1>
+        <h2>แบบบันทึกหลังการจัดกิจกรรมการเรียนรู้</h2>
+        <p>กลุ่มสาระการเรียนรู้ ${esc(rf.group_name || '-')} · โรงเรียนบ้านห้วยตาด</p>
+      </header>
+
+      <div style="font-size:11.5pt; line-height:1.75; margin-bottom:14px;">
+        <div><strong>รายวิชา:</strong> ${esc(rf.subject_code)} ${esc(rf.subject_name)} &nbsp;&nbsp;&nbsp; <strong>ระดับชั้น:</strong> ${esc(rf.classroom)}</div>
+        <div><strong>ชื่อหน่วยการเรียนรู้:</strong> ${esc(rf.unit_title)}</div>
+        <div><strong>ครูผู้สอน:</strong> ${esc(rf.teacher_name)} &nbsp;&nbsp;&nbsp; <strong>วันที่ทำการสอน:</strong> ${formatDate(rf.taught_date)}</div>
+      </div>
+
+      <div class="print-section-title">1. สถิติจำนวนนักเรียนและการบรรลุจุดประสงค์การเรียนรู้</div>
+      <table class="print-table" style="text-align:center;">
+        <thead>
+          <tr>
+            <th>นักเรียนทั้งหมด (คน)</th>
+            <th>มาเรียน (คน)</th>
+            <th>ขาดเรียน (คน)</th>
+            <th>บรรลุจุดประสงค์ (คน)</th>
+            <th>คิดเป็นร้อยละ (%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>${rf.total_students}</td>
+            <td>${rf.present_students}</td>
+            <td>${Math.max(0, rf.total_students - rf.present_students)}</td>
+            <td><strong>${rf.achieved_students}</strong></td>
+            <td><strong style="font-size:11pt;">${rf.achievement_percentage}%</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="print-section-title">2. ผลการจัดกิจกรรมการเรียนรู้</div>
+      <div style="font-size:11pt; padding:6px 10px; border:1px solid #000; min-height:60px; line-height:1.6; white-space:pre-wrap; margin-bottom:12px;">
+        ${esc(rf.outcomes) || 'ไม่มีการระบุ'}
+      </div>
+
+      <div class="print-section-title">3. ปัญหาและอุปสรรค</div>
+      <div style="font-size:11pt; padding:6px 10px; border:1px solid #000; min-height:50px; line-height:1.6; white-space:pre-wrap; margin-bottom:12px;">
+        ${esc(rf.problems) || 'ไม่มีปัญหาและอุปสรรคในการจัดกิจกรรมการเรียนรู้'}
+      </div>
+
+      <div class="print-section-title">4. ข้อเสนอแนะและแนวทางแก้ไข / พัฒนา</div>
+      <div style="font-size:11pt; padding:6px 10px; border:1px solid #000; min-height:50px; line-height:1.6; white-space:pre-wrap; margin-bottom:20px;">
+        ${esc(rf.solutions) || 'ไม่มีการระบุ'}
+      </div>
+
+      <div class="print-signature-section" style="margin-top:30px;">
+        <div class="print-signature-box">
+          <p>ลงชื่อ ................................................................ ผู้สอน</p>
+          <p>( ${esc(rf.teacher_name)} )</p>
+          <p>ตำแหน่ง ครูผู้สอน</p>
+        </div>
+        <div class="print-signature-box">
+          <p>ลงชื่อ ................................................................ ผู้รับทราบ</p>
+          <p>( ................................................................ )</p>
+          <p>หัวหน้ากลุ่มสาระการเรียนรู้ / หัวหน้าฝ่ายวิชาการ</p>
+        </div>
+      </div>
+
+      <footer class="print-meta-footer" style="margin-top:35px;">
+        <div>พิมพ์จากระบบ Teaching Space · โรงเรียนบ้านห้วยตาด (${todayDateStr})</div>
+        <div>หน้า 1 จาก 1</div>
+      </footer>
+    </article>
+  `;
+
+  const printArea = document.getElementById('printable-area');
+  printArea.innerHTML = printHtml;
+  window.print();
 }
