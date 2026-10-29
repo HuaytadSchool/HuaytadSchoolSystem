@@ -6,7 +6,7 @@
  */
 
 const CONFIG = {
-  GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbysT26dUNIrAAPyEyXhSv-mOOiFiFqTo0NtY4iOLPx-dXStgOIVb7m0x4ZnEo3A_6iygQ/exec",
+  GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbxP-q1ZE37Xmpsl769rYtJKwPgI87rUDZ0rxwIIOJADyT2hl-G5oNZGztgERIm8ELYroQ/exec",
   LIFF_ID: "2010662195-iJjI0NIA",
   MAX_FILE_SIZE_MB: 10
 };
