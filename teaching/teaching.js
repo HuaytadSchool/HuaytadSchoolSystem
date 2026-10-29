@@ -1,6 +1,7 @@
 /**
  * ============================================================================
  * Teaching Space Frontend Script - โรงเรียนห้วยตาดวิทยา
+ * มาตรฐาน: ใช้ SVG Icons ทั้งหมด (100% Emoji-Free)
  * ============================================================================
  */
 
@@ -9,6 +10,35 @@ const CONFIG = {
   LIFF_ID: "2010662195-iJjI0NIA",
   MAX_FILE_SIZE_MB: 10
 };
+
+// SVG Icons Dictionary (มาตรฐานเดียวกับระบบของโรงเรียน)
+const ICONS = {
+  book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+  fileText: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>',
+  edit: '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',
+  send: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
+  save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
+  checkCircle: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+  check: '<polyline points="20 6 9 17 4 12"/>',
+  x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+  refresh: '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>',
+  circle: '<circle cx="12" cy="12" r="9"/>',
+  paperclip: '<path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
+  lock: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  unlock: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>',
+  list: '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
+  plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  alert: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  arrowRight: '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>'
+};
+
+function svg(name, size = 16, width = 2) {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;display:inline-block;flex:none">${ICONS[name] || ''}</svg>`;
+}
 
 // Global App State
 let state = {
@@ -25,11 +55,11 @@ let state = {
   uploadedFileName: null
 };
 
-// API Call Proxy (เหมือนระบบลาเดิม)
+// API Call Proxy (แบบเดียวกับระบบลาของโรงเรียน)
 const api = new Proxy({}, {
   get: (_t, funcName) => async (...args) => {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 60000); // 60s timeout for file upload
+    const timer = setTimeout(() => ctrl.abort(), 60000);
     try {
       const res = await fetch(CONFIG.GAS_WEB_APP_URL, {
         method: 'POST',
@@ -201,8 +231,8 @@ function renderLoads(container) {
   if (!state.loads || state.loads.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
-        <div class="empty-icon">📚</div>
-        <p>ยังไม่มีข้อมูลภาระการสอนในภาคเรียนนี้</p>
+        <div class="empty-icon">${svg('book', 40, 1.5)}</div>
+        <p style="margin-top:10px;">ยังไม่มีข้อมูลภาระการสอนในภาคเรียนนี้</p>
         <small class="text-muted">กรุณาติดต่อฝ่ายวิชาการเพื่อกำหนดรายวิชาที่สอน</small>
       </div>`;
     return;
@@ -210,7 +240,6 @@ function renderLoads(container) {
 
   let html = '';
   state.loads.forEach(load => {
-    // หาแผนล่าสุด
     const latestPlan = (load.plans && load.plans.length > 0) ? load.plans[load.plans.length - 1] : null;
     const status = latestPlan ? latestPlan.status : 'Not_Submitted';
     const statusText = getStatusBadge(status);
@@ -227,7 +256,7 @@ function renderLoads(container) {
         </div>
 
         ${latestPlan ? `
-          <div style="font-size:13px; color:#475569; margin: 8px 0; background:#f8fafc; padding:8px 12px; border-radius:8px;">
+          <div style="font-size:13px; color:#475569; margin: 8px 0; background:#f8fafc; padding:8px 12px; border-radius:8px; border:1px solid #e2e8f0;">
             <div><strong>หน่วย/เรื่อง:</strong> ${esc(latestPlan.unit_title || '-')} (${latestPlan.teaching_hours || 0} ชม.)</div>
             <div><strong>ฉบับที่:</strong> ${latestPlan.version || 1} ${latestPlan.due_date ? '• กำหนดส่ง: ' + formatDate(latestPlan.due_date) : ''}</div>
           </div>
@@ -240,11 +269,11 @@ function renderLoads(container) {
           <div style="display:flex; gap:8px;">
             ${latestPlan && latestPlan.drive_pdf_url ? `
               <a href="${latestPlan.drive_pdf_url}" target="_blank" class="btn-secondary" style="text-decoration:none;">
-                📄 ดู PDF
+                ${svg('fileText', 14)} <span>ดู PDF</span>
               </a>
             ` : ''}
             <button class="btn-primary" onclick="openSubmitModal('${load.load_id}')">
-              ${latestPlan ? '✏️ ส่งฉบับแก้ไข' : '🚀 ส่งแผนการสอน'}
+              ${latestPlan ? `${svg('edit', 14)} <span>ส่งฉบับแก้ไข</span>` : `${svg('send', 14)} <span>ส่งแผนการสอน</span>`}
             </button>
           </div>
         </div>
@@ -257,7 +286,6 @@ function renderLoads(container) {
 
 // Tab 2: บันทึกหลังสอน
 function renderReflections(container) {
-  // ดึงเฉพาะวิชาที่มีแผน Approved แล้ว
   const approvedPlans = [];
   state.loads.forEach(load => {
     (load.plans || []).forEach(plan => {
@@ -270,8 +298,8 @@ function renderReflections(container) {
   if (approvedPlans.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
-        <div class="empty-icon">📝</div>
-        <p>ยังไม่มีแผนการสอนที่ผ่านการรับรอง</p>
+        <div class="empty-icon">${svg('edit', 40, 1.5)}</div>
+        <p style="margin-top:10px;">ยังไม่มีแผนการสอนที่ผ่านการรับรอง</p>
         <small class="text-muted">เมื่อแผนการสอนได้รับการรับรองจากฝ่ายวิชาการแล้ว จะสามารถบันทึกหลังสอนได้ที่นี่</small>
       </div>`;
     return;
@@ -287,14 +315,14 @@ function renderReflections(container) {
             <div class="subject-name">${esc(item.load.subject_name)} (ชั้น ${esc(item.load.classroom)})</div>
             <div class="classroom-tag">หน่วย: ${esc(item.unit_title)}</div>
           </div>
-          <div><span class="status-badge status-approved">✅ รับรองแล้ว</span></div>
+          <div><span class="status-badge status-approved">${svg('checkCircle', 12)} รับรองแล้ว</span></div>
         </div>
         <div class="load-info-row">
           <div style="font-size:12.5px; color:#64748b;">
             สามารถบันทึกผลการจัดการเรียนรู้รายวันได้
           </div>
           <button class="btn-primary" onclick="openReflectionModal('${item.plan_id}', '${esc(item.unit_title)}')">
-            ➕ เพิ่มบันทึกหลังสอน
+            ${svg('plus', 14)} <span>เพิ่มบันทึกหลังสอน</span>
           </button>
         </div>
       </div>
@@ -307,14 +335,14 @@ function renderReflections(container) {
 // Tab 3: รายการรอตรวจ (สำหรับหัวหน้ากลุ่มสาระ และวิชาการ)
 function renderReviews(container) {
   container.innerHTML = `
-    <div class="load-card" style="text-align:center; padding: 32px 16px;">
-      <div style="font-size: 32px; margin-bottom: 8px;">📑</div>
+    <div class="load-card" style="text-align:center; padding: 36px 16px;">
+      <div class="empty-icon">${svg('fileText', 44, 1.5)}</div>
       <div style="font-size: 16px; font-weight:800; margin-bottom: 6px;">ระบบตรวจรับรองผ่าน LINE Chat</div>
       <p style="font-size: 13px; color: #64748b; max-width: 460px; margin: 0 auto 16px;">
         เมื่อครูส่งแผนการสอน ระบบจะส่งการ์ดแจ้งเตือน (Flex Message) ไปที่แชท LINE ของท่านโดยตรง พร้อมปุ่มเปิดดู PDF และปุ่มอนุมัติ/ส่งกลับแก้ไข
       </p>
       <a href="https://line.me/R/nv/chat" class="btn-primary" style="margin: 0 auto;">
-        เปิด LINE เพื่อตรวจแผน
+        ${svg('arrowRight', 14)} <span>เปิด LINE เพื่อตรวจแผน</span>
       </a>
     </div>
   `;
@@ -331,14 +359,12 @@ function openSubmitModal(loadId) {
   state.uploadedBase64 = null;
   state.uploadedFileName = null;
 
-  const defaultRound = state.rounds[0] || { round_id: 'R1', title: 'รอบส่งแผนปกติ' };
-
   const content = `
     <div class="modal-header">
       <div class="modal-title">ส่งแผนการสอน</div>
-      <button class="modal-close-btn" onclick="closeModal()">✕</button>
+      <button class="modal-close-btn" onclick="closeModal()">${svg('x', 18)}</button>
     </div>
-    <div style="margin-bottom:14px; background:#f1f5f9; padding:10px 14px; border-radius:8px; font-size:13px;">
+    <div style="margin-bottom:14px; background:#f1f5f9; padding:10px 14px; border-radius:8px; font-size:13px; border:1px solid #e2e8f0;">
       <div><strong>วิชา:</strong> ${esc(load.subject_code)} ${esc(load.subject_name)}</div>
       <div><strong>ชั้นเรียน:</strong> ${esc(load.classroom)} | <strong>ผู้ตรวจ:</strong> ${esc(load.reviewer_name)}</div>
     </div>
@@ -361,14 +387,18 @@ function openSubmitModal(loadId) {
         <label class="form-label">แนบไฟล์แผนการสอน (เฉพาะ PDF ไม่เกิน 10 MB) *</label>
         <div class="file-dropzone" onclick="document.getElementById('pdf-file-input').click()">
           <div id="dropzone-text" style="font-size:13px; color:#64748b;">
-            📁 แตะเพื่อเลือกไฟล์ PDF
+            ${svg('paperclip', 18)} <span>แตะเพื่อเลือกไฟล์ PDF</span>
           </div>
         </div>
         <input type="file" id="pdf-file-input" accept="application/pdf" style="display:none;" onchange="handleFileChange(event)"/>
       </div>
       <div style="display:flex; gap:10px; margin-top:20px;">
-        <button type="button" class="btn-secondary" style="flex:1;" onclick="submitPlanForm(true)">💾 บันทึกฉบับร่าง</button>
-        <button type="button" class="btn-primary" style="flex:1;" onclick="submitPlanForm(false)">🚀 ส่งตรวจ</button>
+        <button type="button" class="btn-secondary" style="flex:1; justify-content:center;" onclick="submitPlanForm(true)">
+          ${svg('save', 14)} <span>บันทึกฉบับร่าง</span>
+        </button>
+        <button type="button" class="btn-primary" style="flex:1; justify-content:center;" onclick="submitPlanForm(false)">
+          ${svg('send', 14)} <span>ส่งตรวจ</span>
+        </button>
       </div>
     </form>
   `;
@@ -398,7 +428,7 @@ function handleFileChange(event) {
     state.uploadedBase64 = e.target.result;
     state.uploadedFileName = file.name;
     document.getElementById('dropzone-text').innerHTML = `
-      <div style="color:#16a34a; font-weight:700;">✅ เลือกไฟล์แล้ว: ${esc(file.name)}</div>
+      <div style="color:#16a34a; font-weight:700;">${svg('check', 16)} เลือกไฟล์แล้ว: ${esc(file.name)}</div>
       <small style="color:#64748b;">ขนาด: ${sizeMb.toFixed(2)} MB</small>
     `;
   };
@@ -435,11 +465,11 @@ async function submitPlanForm(isDraft) {
       lineUserId: state.teacher.lineUserId
     };
 
-    const res = await api.submitLessonPlan(payload);
+    await api.submitLessonPlan(payload);
 
     Swal.fire({
       icon: 'success',
-      title: isDraft ? 'บันทึกฉบับร่างแล้ว' : 'ส่งแผนการสอนสำเร็จ!',
+      title: isDraft ? 'บันทึกฉบับร่างแล้ว' : 'ส่งแผนการสอนสำเร็จ',
       text: isDraft ? 'คุณสามารถกลับมาแก้ไขและส่งตรวจได้ตลอดเวลา' : 'ระบบแจ้งเตือนหัวหน้ากลุ่มสาระเรียบร้อยแล้ว',
       confirmButtonColor: '#1e3a8a'
     }).then(() => {
@@ -460,9 +490,9 @@ function openReflectionModal(planId, unitTitle) {
   const content = `
     <div class="modal-header">
       <div class="modal-title">บันทึกผลการจัดการเรียนรู้</div>
-      <button class="modal-close-btn" onclick="closeModal()">✕</button>
+      <button class="modal-close-btn" onclick="closeModal()">${svg('x', 18)}</button>
     </div>
-    <div style="margin-bottom:12px; font-size:13px; color:#475569;">
+    <div style="margin-bottom:12px; font-size:13px; color:#475569; background:#f8fafc; padding:8px 12px; border-radius:8px; border:1px solid #e2e8f0;">
       <strong>หน่วย:</strong> ${esc(unitTitle)}
     </div>
     <form id="reflection-form">
@@ -498,7 +528,7 @@ function openReflectionModal(planId, unitTitle) {
       </div>
       <div style="margin-top:16px;">
         <button type="button" class="btn-primary" style="width:100%; justify-content:center; padding:12px;" onclick="submitReflection('${planId}')">
-          🔒 ยืนยันบันทึกสมบูรณ์
+          ${svg('lock', 14)} <span>ยืนยันบันทึกสมบูรณ์</span>
         </button>
       </div>
     </form>
@@ -547,7 +577,7 @@ async function submitReflection(planId) {
       lineUserId: state.teacher.lineUserId
     });
 
-    Swal.fire('บันทึกสำเร็จ!', 'บันทึกหลังสอนของท่านถูกจัดเก็บเรียบร้อยแล้ว', 'success');
+    Swal.fire('บันทึกสำเร็จ', 'บันทึกหลังสอนของท่านถูกจัดเก็บเรียบร้อยแล้ว', 'success');
   } catch (err) {
     Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
   } finally {
@@ -593,12 +623,12 @@ function showLoader(show, text = 'กำลังโหลด...') {
 
 function getStatusBadge(status) {
   switch (status) {
-    case 'Draft': return '<span class="status-badge status-draft">✏️ ฉบับร่าง</span>';
-    case 'Pending_Head': return '<span class="status-badge status-pending_head">⏳ รอหัวหน้าตรวจ</span>';
-    case 'Pending_Academic': return '<span class="status-badge status-pending_academic">🔍 รอวิชาการรับรอง</span>';
-    case 'Approved': return '<span class="status-badge status-approved">✅ รับรองแล้ว</span>';
-    case 'Revise': return '<span class="status-badge status-revise">🔄 ให้แก้ไข</span>';
-    default: return '<span class="status-badge status-not_submitted">⚪ ยังไม่ส่ง</span>';
+    case 'Draft': return `<span class="status-badge status-draft">${svg('edit', 12)} ฉบับร่าง</span>`;
+    case 'Pending_Head': return `<span class="status-badge status-pending_head">${svg('clock', 12)} รอหัวหน้าตรวจ</span>`;
+    case 'Pending_Academic': return `<span class="status-badge status-pending_academic">${svg('eye', 12)} รอวิชาการรับรอง</span>`;
+    case 'Approved': return `<span class="status-badge status-approved">${svg('checkCircle', 12)} รับรองแล้ว</span>`;
+    case 'Revise': return `<span class="status-badge status-revise">${svg('refresh', 12)} ให้แก้ไข</span>`;
+    default: return `<span class="status-badge status-not_submitted">${svg('circle', 12)} ยังไม่ส่ง</span>`;
   }
 }
 
