@@ -33,7 +33,8 @@ const ICONS = {
   download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
   calendar: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
   alert: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
-  arrowRight: '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>'
+  arrowRight: '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>'
 };
 
 function svg(name, size = 16, width = 2) {
@@ -205,6 +206,13 @@ function renderTabs() {
       reviewTab.style.display = 'none';
     }
   }
+
+  // แท็บจัดการวิชาการ (สำหรับ Academic / Admin / Director)
+  const isAcademic = ['Academic', 'Admin', 'Director'].includes(state.teacher.role);
+  const manageTab = document.getElementById('tab-manage-btn');
+  if (manageTab) {
+    manageTab.style.display = isAcademic ? 'flex' : 'none';
+  }
 }
 
 function switchTab(tabName) {
@@ -223,6 +231,8 @@ function renderCurrentTab() {
     renderReflections(container);
   } else if (state.activeTab === 'reviews') {
     renderReviews(container);
+  } else if (state.activeTab === 'manage') {
+    renderManage(container);
   }
 }
 
@@ -562,6 +572,450 @@ async function submitReviewAction(planId) {
       await renderReviews(container);
     });
 
+  } catch (err) {
+    Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+  } finally {
+    showLoader(false);
+  }
+}
+
+// Tab 4: จัดการวิชาการ (สำหรับ Academic / Admin / Director)
+async function renderManage(container) {
+  container.innerHTML = `
+    <div style="text-align:center; padding:40px 16px;">
+      <div class="spinner" style="margin:0 auto 12px;"></div>
+      <p style="color:#64748b; font-size:13px;">กำลังโหลดข้อมูลการจัดการฝ่ายวิชาการ...</p>
+    </div>`;
+
+  try {
+    const data = await api.getAcademicManageData(state.teacher.lineUserId);
+    state.manageData = data;
+
+    const rounds = data.rounds || [];
+    const loads = data.loads || [];
+
+    let roundsHtml = '';
+    if (rounds.length === 0) {
+      roundsHtml = '<div style="color:#64748b; font-size:13px; text-align:center; padding:16px;">ยังไม่มีการเปิดรอบส่งแผนในภาคเรียนนี้</div>';
+    } else {
+      roundsHtml = rounds.map(r => {
+        const isOpen = r.is_open === true || String(r.is_open).toUpperCase() === 'TRUE';
+        return `
+          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div>
+              <div style="font-weight:700; font-size:14px; color:#0f172a;">${esc(r.title)}</div>
+              <div style="font-size:12px; color:#64748b; margin-top:2px;">
+                เปิดรับ: ${formatDate(r.start_date)} • กำหนดส่ง: ${formatDate(r.due_date)}
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span class="status-badge ${isOpen ? 'status-approved' : 'status-draft'}">
+                ${isOpen ? `${svg('check', 11)} กำลังเปิดรับ` : `${svg('x', 11)} ปิดรับแล้ว`}
+              </span>
+              <button class="btn-secondary" style="font-size:12px; padding:6px 10px;" onclick="handleToggleRound('${r.round_id}', ${!isOpen})">
+                ${isOpen ? 'ปิดรอบ' : 'เปิดรับ'}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    let loadsHtml = '';
+    if (loads.length === 0) {
+      loadsHtml = '<div style="color:#64748b; font-size:13px; text-align:center; padding:16px;">ยังไม่มีการมอบหมายภาระการสอน</div>';
+    } else {
+      loadsHtml = loads.map(l => {
+        return `
+          <div class="load-card" style="margin-bottom:12px;">
+            <div class="load-header">
+              <div>
+                <span class="subject-code">${esc(l.subject_code)}</span>
+                <div class="subject-name">${esc(l.subject_name)} (ชั้น ${esc(l.classroom)})</div>
+                <div class="classroom-tag" style="margin-top:2px;">
+                  ผู้สอน: <strong>${esc(l.teacher_name)}</strong> ${l.teacher_dept ? '(' + esc(l.teacher_dept) + ')' : ''}
+                </div>
+              </div>
+            </div>
+            <div class="load-info-row">
+              <div class="reviewer-info">
+                ผู้ตรวจ: <strong>${esc(l.reviewer_name)}</strong>
+              </div>
+              <div>
+                <button class="btn-secondary" style="font-size:12px; padding:6px 12px;" onclick="openChangeReviewerModal('${l.load_id}', '${esc(l.subject_code)}', '${esc(l.classroom)}', '${esc(l.reviewer_id)}')">
+                  ${svg('edit', 12)} <span>เปลี่ยนผู้ตรวจ</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    container.innerHTML = `
+      <div style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div style="font-size:18px; font-weight:800; color:var(--primary); display:flex; align-items:center; gap:8px;">
+          ${svg('settings', 18)} <span>การจัดการฝ่ายวิชาการ</span>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn-primary" onclick="openCreateRoundModal()">
+            ${svg('plus', 14)} <span>เปิดรอบส่งแผน</span>
+          </button>
+          <button class="btn-primary" onclick="openCreateLoadModal()" style="background:#0284c7;">
+            ${svg('plus', 14)} <span>มอบหมายภาระสอน</span>
+          </button>
+          <button class="btn-secondary" onclick="openCreateSubjectModal()">
+            ${svg('plus', 14)} <span>เพิ่มรายวิชา</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ส่วนที่ 1: รอบการส่งแผน -->
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:18px; margin-bottom:24px;">
+        <div style="font-size:15px; font-weight:800; color:#1e3a8a; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+          ${svg('calendar', 16)} <span>รอบการส่งแผนการสอน (ภาคเรียนปัจจุบัน)</span>
+        </div>
+        ${roundsHtml}
+      </div>
+
+      <!-- ส่วนที่ 2: ภาระการสอน -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:15px; font-weight:800; color:#1e3a8a; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+          ${svg('book', 16)} <span>ทะเบียนภาระการสอนและผู้ตรวจประจำวิชา</span>
+        </div>
+        <div class="cards-grid">
+          ${loadsHtml}
+        </div>
+      </div>
+    `;
+
+  } catch (err) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">${svg('alert', 40, 1.5)}</div>
+        <p style="color:#dc2626;">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
+        <small class="text-muted">${esc(err.message)}</small>
+      </div>`;
+  }
+}
+
+// เปิด/ปิด สถานะรอบการส่งแผน
+async function handleToggleRound(roundId, newIsOpen) {
+  showLoader(true, 'กำลังอัปเดตสถานะรอบส่งแผน...');
+  try {
+    await api.toggleRoundStatus({
+      roundId: roundId,
+      isOpen: newIsOpen,
+      lineUserId: state.teacher.lineUserId
+    });
+    const container = document.getElementById('tab-content');
+    await renderManage(container);
+  } catch (err) {
+    Swal.fire('ข้อผิดพลาด', err.message, 'error');
+  } finally {
+    showLoader(false);
+  }
+}
+
+// Modal สร้างรอบส่งแผนใหม่
+function openCreateRoundModal() {
+  const today = new Date().toISOString().split('T')[0];
+
+  const content = `
+    <div class="modal-header">
+      <div class="modal-title">เปิดรอบการส่งแผนการสอน</div>
+      <button class="modal-close-btn" onclick="closeModal()">${svg('x', 18)}</button>
+    </div>
+    <form id="create-round-form">
+      <div class="form-group">
+        <label class="form-label">ชื่อรอบการส่งแผน *</label>
+        <input type="text" id="round-title" class="form-input" placeholder="เช่น แผนการสอนหน่วยที่ 1 หรือ ประจำสัปดาห์ที่ 1-4" required/>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div class="form-group">
+          <label class="form-label">วันเริ่มเปิดรับ *</label>
+          <input type="date" id="round-start" class="form-input" value="${today}" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">วันกำหนดส่ง *</label>
+          <input type="date" id="round-due" class="form-input" value="${today}" required/>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:10px;">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" id="round-is-open" checked/>
+          <span style="font-size:13px; font-weight:600; color:#334155;">เปิดรับการส่งทันที</span>
+        </label>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button type="button" class="btn-secondary" style="flex:1; justify-content:center;" onclick="closeModal()">ยกเลิก</button>
+        <button type="button" class="btn-primary" style="flex:1; justify-content:center;" onclick="submitCreateRound()">
+          ${svg('plus', 14)} <span>สร้างรอบส่งแผน</span>
+        </button>
+      </div>
+    </form>
+  `;
+
+  showModal(content);
+}
+
+async function submitCreateRound() {
+  const title = document.getElementById('round-title').value.trim();
+  const start = document.getElementById('round-start').value;
+  const due = document.getElementById('round-due').value;
+  const isOpen = document.getElementById('round-is-open').checked;
+
+  if (!title || !start || !due) {
+    Swal.fire('กรุณากรอกข้อมูลให้ครบ', 'ระบุชื่อรอบ วันเริ่ม และวันกำหนดส่ง', 'warning');
+    return;
+  }
+
+  closeModal();
+  showLoader(true, 'กำลังสร้างรอบการส่งแผนและจัดเตรียมรายการติดตาม...');
+
+  try {
+    await api.createRound({
+      title: title,
+      startDate: start,
+      dueDate: due,
+      isOpen: isOpen,
+      lineUserId: state.teacher.lineUserId
+    });
+
+    Swal.fire('สร้างรอบส่งแผนสำเร็จ', 'ระบบได้เพิ่มรอบและเตรียมรายการติดตามให้ครูทุกท่านเรียบร้อยแล้ว', 'success').then(async () => {
+      const container = document.getElementById('tab-content');
+      await renderManage(container);
+    });
+  } catch (err) {
+    Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+  } finally {
+    showLoader(false);
+  }
+}
+
+// Modal มอบหมายภาระการสอนใหม่
+function openCreateLoadModal() {
+  const teachers = (state.manageData && state.manageData.teachers) || [];
+  const subjects = (state.manageData && state.manageData.subjects) || [];
+
+  const teacherOptions = teachers.map(t => `<option value="${t.id}">${esc(t.fullName)} (${esc(t.department || 'ไม่ระบุ')})</option>`).join('');
+  const subjectOptions = subjects.map(s => `<option value="${s.subject_id}">${esc(s.code)} - ${esc(s.name)} (${esc(s.level || '-')})</option>`).join('');
+  const reviewerOptions = teachers.map(t => `<option value="${t.id}">${esc(t.fullName)} (${esc(t.department || 'ไม่ระบุ')})</option>`).join('');
+
+  const content = `
+    <div class="modal-header">
+      <div class="modal-title">มอบหมายภาระการสอน</div>
+      <button class="modal-close-btn" onclick="closeModal()">${svg('x', 18)}</button>
+    </div>
+    <form id="create-load-form">
+      <div class="form-group">
+        <label class="form-label">ครูผู้สอน *</label>
+        <select id="load-teacher-id" class="form-select">
+          ${teacherOptions}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">รายวิชา *</label>
+        <select id="load-subject-id" class="form-select">
+          ${subjectOptions}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ห้องเรียนที่สอน *</label>
+        <input type="text" id="load-classroom" class="form-input" placeholder="เช่น ม.1/1 หรือ ป.4" required/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">หัวหน้าผู้ตรวจประจำวิชา * (ต้องเป็นคนละคนกับครูผู้สอน)</label>
+        <select id="load-reviewer-id" class="form-select">
+          ${reviewerOptions}
+        </select>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button type="button" class="btn-secondary" style="flex:1; justify-content:center;" onclick="closeModal()">ยกเลิก</button>
+        <button type="button" class="btn-primary" style="flex:1; justify-content:center;" onclick="submitCreateLoad()">
+          ${svg('plus', 14)} <span>บันทึกภาระสอน</span>
+        </button>
+      </div>
+    </form>
+  `;
+
+  showModal(content);
+}
+
+async function submitCreateLoad() {
+  const teacherId = document.getElementById('load-teacher-id').value;
+  const subjectId = document.getElementById('load-subject-id').value;
+  const classroom = document.getElementById('load-classroom').value.trim();
+  const reviewerId = document.getElementById('load-reviewer-id').value;
+
+  if (!teacherId || !subjectId || !classroom || !reviewerId) {
+    Swal.fire('กรุณากรอกข้อมูลให้ครบ', 'ระบุครูผู้สอน วิชา ห้องเรียน และผู้ตรวจ', 'warning');
+    return;
+  }
+
+  if (teacherId === reviewerId) {
+    Swal.fire('ข้อผิดพลาด', 'ผู้ตรวจประจำวิชาต้องเป็นคนละคนกับครูผู้สอนตามระเบียบ', 'warning');
+    return;
+  }
+
+  closeModal();
+  showLoader(true, 'กำลังบันทึกภาระการสอน...');
+
+  try {
+    await api.createTeachingLoad({
+      teacherId: teacherId,
+      subjectId: subjectId,
+      classroom: classroom,
+      reviewerId: reviewerId,
+      lineUserId: state.teacher.lineUserId
+    });
+
+    Swal.fire('บันทึกสำเร็จ', 'มอบหมายภาระการสอนเรียบร้อยแล้ว', 'success').then(async () => {
+      const container = document.getElementById('tab-content');
+      await renderManage(container);
+    });
+  } catch (err) {
+    Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+  } finally {
+    showLoader(false);
+  }
+}
+
+// Modal เปลี่ยนผู้ตรวจประจำวิชา
+function openChangeReviewerModal(loadId, subjectCode, classroom, currentReviewerId) {
+  const teachers = (state.manageData && state.manageData.teachers) || [];
+  const reviewerOptions = teachers.map(t => `<option value="${t.id}" ${t.id === currentReviewerId ? 'selected' : ''}>${esc(t.fullName)} (${esc(t.department || 'ไม่ระบุ')})</option>`).join('');
+
+  const content = `
+    <div class="modal-header">
+      <div class="modal-title">เปลี่ยนผู้ตรวจประจำวิชา</div>
+      <button class="modal-close-btn" onclick="closeModal()">${svg('x', 18)}</button>
+    </div>
+    <div style="background:#f1f5f9; padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:14px; border:1px solid #e2e8f0;">
+      <div><strong>วิชา:</strong> ${esc(subjectCode)} (ชั้น ${esc(classroom)})</div>
+    </div>
+    <form id="change-reviewer-form">
+      <div class="form-group">
+        <label class="form-label">เลือกผู้ตรวจคนใหม่ *</label>
+        <select id="new-reviewer-id" class="form-select">
+          ${reviewerOptions}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">เหตุผลในการเปลี่ยนผู้ตรวจ *</label>
+        <textarea id="reviewer-change-reason" class="form-textarea" rows="2" placeholder="ระบุเหตุผลในการเปลี่ยนผู้ตรวจประจำวิชา..." required></textarea>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button type="button" class="btn-secondary" style="flex:1; justify-content:center;" onclick="closeModal()">ยกเลิก</button>
+        <button type="button" class="btn-primary" style="flex:1; justify-content:center;" onclick="submitChangeReviewer('${loadId}')">
+          ${svg('check', 14)} <span>ยืนยันเปลี่ยนผู้ตรวจ</span>
+        </button>
+      </div>
+    </form>
+  `;
+
+  showModal(content);
+}
+
+async function submitChangeReviewer(loadId) {
+  const newReviewerId = document.getElementById('new-reviewer-id').value;
+  const reason = document.getElementById('reviewer-change-reason').value.trim();
+
+  if (!newReviewerId || !reason) {
+    Swal.fire('กรุณากรอกข้อมูลให้ครบ', 'เลือกผู้ตรวจคนใหม่และระบุเหตุผลในการเปลี่ยน', 'warning');
+    return;
+  }
+
+  closeModal();
+  showLoader(true, 'กำลังบันทึกข้อมูล...');
+
+  try {
+    await api.changeReviewer({
+      loadId: loadId,
+      newReviewerId: newReviewerId,
+      reason: reason,
+      lineUserId: state.teacher.lineUserId
+    });
+
+    Swal.fire('เปลี่ยนผู้ตรวจสำเร็จ', 'ระบบได้บันทึกประวัติและปรับผู้ตรวจเรียบร้อยแล้ว', 'success').then(async () => {
+      const container = document.getElementById('tab-content');
+      await renderManage(container);
+    });
+  } catch (err) {
+    Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+  } finally {
+    showLoader(false);
+  }
+}
+
+// Modal เพิ่มรายวิชาใหม่
+function openCreateSubjectModal() {
+  const groups = (state.manageData && state.manageData.groups) || [];
+  const groupOptions = groups.map(g => `<option value="${g.group_id}">${esc(g.name)}</option>`).join('');
+
+  const content = `
+    <div class="modal-header">
+      <div class="modal-title">เพิ่มรายวิชาใหม่</div>
+      <button class="modal-close-btn" onclick="closeModal()">${svg('x', 18)}</button>
+    </div>
+    <form id="create-subject-form">
+      <div class="form-group">
+        <label class="form-label">รหัสวิชา *</label>
+        <input type="text" id="sub-code" class="form-input" placeholder="เช่น ว21101 หรือ ท15101" required/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ชื่อรายวิชา *</label>
+        <input type="text" id="sub-name" class="form-input" placeholder="เช่น วิทยาการคำนวณ 1" required/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">กลุ่มสาระการเรียนรู้ *</label>
+        <select id="sub-group" class="form-select">
+          ${groupOptions}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ระดับชั้น</label>
+        <input type="text" id="sub-level" class="form-input" placeholder="เช่น ม.1 หรือ ป.5"/>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button type="button" class="btn-secondary" style="flex:1; justify-content:center;" onclick="closeModal()">ยกเลิก</button>
+        <button type="button" class="btn-primary" style="flex:1; justify-content:center;" onclick="submitCreateSubject()">
+          ${svg('plus', 14)} <span>เพิ่มรายวิชา</span>
+        </button>
+      </div>
+    </form>
+  `;
+
+  showModal(content);
+}
+
+async function submitCreateSubject() {
+  const code = document.getElementById('sub-code').value.trim();
+  const name = document.getElementById('sub-name').value.trim();
+  const groupId = document.getElementById('sub-group').value;
+  const level = document.getElementById('sub-level').value.trim();
+
+  if (!code || !name || !groupId) {
+    Swal.fire('กรุณากรอกข้อมูลให้ครบ', 'ระบุรหัสวิชา ชื่อวิชา และกลุ่มสาระ', 'warning');
+    return;
+  }
+
+  closeModal();
+  showLoader(true, 'กำลังเพิ่มรายวิชา...');
+
+  try {
+    await api.createSubject({
+      code: code,
+      name: name,
+      groupId: groupId,
+      level: level,
+      lineUserId: state.teacher.lineUserId
+    });
+
+    Swal.fire('เพิ่มรายวิชาสำเร็จ', 'รายวิชาใหม่พร้อมสำหรับการมอบหมายภาระการสอนแล้ว', 'success').then(async () => {
+      const container = document.getElementById('tab-content');
+      await renderManage(container);
+    });
   } catch (err) {
     Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
   } finally {
