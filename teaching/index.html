@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Teaching Space — ระบบส่งแผนการสอนและบันทึกหลังสอน | โรงเรียนห้วยตาดวิทยา</title>
+  
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="teaching.css">
+  
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- LINE LIFF SDK -->
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="top-bar">
+    <div class="top-bar-inner">
+      <div class="brand-wrapper">
+        <img src="../img/logo-ht.png" alt="Logo" class="school-logo" onerror="this.style.display='none'">
+        <div>
+          <div class="brand-title">Teaching Space</div>
+          <div class="brand-sub">โรงเรียนห้วยตาดวิทยา</div>
+        </div>
+      </div>
+      <div>
+        <a href="../index.html" class="btn-switch-system">
+          <span>📋</span>
+          <span>ระบบลา</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+
+    <!-- User Profile Card -->
+    <section class="user-card">
+      <div class="user-profile">
+        <div id="user-avatar-wrap">
+          <div class="user-avatar-placeholder">ค</div>
+        </div>
+        <div>
+          <div id="user-name" class="user-name">กำลังโหลดข้อมูล...</div>
+          <div id="user-meta" class="user-meta">กรุณารอสักครู่</div>
+        </div>
+      </div>
+      <div id="term-badge" class="term-badge">ภาคเรียนที่ -/-</div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs-nav">
+      <button id="tab-loads-btn" class="tab-btn active" onclick="switchTab('loads')">
+        <span>📚</span>
+        <span>วิชาที่สอน</span>
+      </button>
+      <button id="tab-reflections-btn" class="tab-btn" onclick="switchTab('reflections')">
+        <span>📝</span>
+        <span>บันทึกหลังสอน</span>
+      </button>
+      <button id="tab-reviews-btn" class="tab-btn" onclick="switchTab('reviews')" style="display:none;">
+        <span>📑</span>
+        <span>รอตรวจ</span>
+        <span id="review-badge" class="tab-badge" style="display:none;">0</span>
+      </button>
+    </nav>
+
+    <!-- Tab Dynamic Content -->
+    <section id="tab-content">
+      <!-- ข้อมูลจะถูก Render ผ่าน JavaScript -->
+    </section>
+
+  </main>
+
+  <!-- Modal Container Root -->
+  <div id="modal-root"></div>
+
+  <!-- Loading Screen Overlay -->
+  <div id="loader-overlay" class="loader-overlay" style="display:none;">
+    <div class="spinner"></div>
+    <div id="loader-text" style="margin-top:14px; font-weight:700; color:#1e3a8a; font-size:14px;">กำลังโหลด...</div>
+  </div>
+
+  <!-- App Script -->
+  <script src="teaching.js"></script>
+</body>
+</html>
