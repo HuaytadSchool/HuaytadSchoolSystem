@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * Teaching Space Frontend Script - โรงเรียนบ้านห้วยตาด
+ * Huaytad Lesson Plan Frontend Script - โรงเรียนบ้านห้วยตาด
  * มาตรฐาน: ใช้ SVG Icons ทั้งหมด (100% Emoji-Free)
  * ============================================================================
  */
@@ -165,8 +165,8 @@ function renderLoginScreen() {
     <div style="min-height:70vh; display:flex; align-items:center; justify-content:center; padding:16px;">
       <div style="background:#ffffff; border:1px solid var(--border); border-radius:24px; box-shadow:var(--shadow-md); max-width:400px; width:100%; padding:36px 24px; text-align:center;">
         <img src="../img/logo-ht.png" alt="Logo" style="width:72px; height:72px; margin-bottom:16px; object-fit:contain;" onerror="this.style.display='none'"/>
-        <h2 style="font-size:20px; font-weight:800; color:var(--primary); margin-bottom:6px;">Teaching Space</h2>
-        <p style="font-size:13px; color:var(--text-muted); margin-bottom:24px;">ระบบส่งแผนการสอนและบันทึกหลังสอน<br/>โรงเรียนบ้านห้วยตาด</p>
+        <h2 style="font-size:20px; font-weight:800; color:var(--primary); margin-bottom:6px;">Huaytad Lesson Plan</h2>
+        <p style="font-size:13px; color:var(--text-muted); margin-bottom:24px;">ระบบแผนการจัดการเรียนรู้และบันทึกหลังสอน<br/>โรงเรียนบ้านห้วยตาด</p>
         <button onclick="handleLineLogin()" style="width:100%; background:#06c755; color:#ffffff; border:none; border-radius:12px; padding:14px; font-size:15px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; box-shadow:0 4px 12px rgba(6,199,85,0.25);">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="#ffffff"><path d="M12 2C6.48 2 2 5.92 2 10.75c0 4.3 3.6 7.9 8.5 8.63.33.07.78.22.89.51.1.26.07.67.03 1.05-.12.87-.53 2.68-.58 2.94-.08.41.15.56.44.38 2.37-1.4 6.44-3.8 8.79-6.5C21.32 15.65 22 13.3 22 10.75 22 5.92 17.52 2 12 2z"/></svg>
           เข้าสู่ระบบด้วย LINE
@@ -2490,7 +2490,7 @@ function printSummaryReport() {
       </div>
 
       <footer class="print-meta-footer">
-        <div>พิมพ์จากระบบ Teaching Space · โรงเรียนบ้านห้วยตาด</div>
+        <div>พิมพ์จากระบบ Huaytad Lesson Plan · โรงเรียนบ้านห้วยตาด</div>
         <div>หน้า 1 จาก 1</div>
       </footer>
     </article>
@@ -2594,7 +2594,7 @@ function printPlanSheet(planId) {
       </div>
 
       <footer class="print-meta-footer" style="margin-top:50px;">
-        <div>พิมพ์จากระบบ Teaching Space · โรงเรียนบ้านห้วยตาด (${todayDateStr})</div>
+        <div>พิมพ์จากระบบ Huaytad Lesson Plan · โรงเรียนบ้านห้วยตาด (${todayDateStr})</div>
         <div>หน้า 1 จาก 1</div>
       </footer>
     </article>
@@ -2686,7 +2686,7 @@ function printReflectionSheet(reflectionId) {
       </div>
 
       <footer class="print-meta-footer" style="margin-top:35px;">
-        <div>พิมพ์จากระบบ Teaching Space · โรงเรียนบ้านห้วยตาด (${todayDateStr})</div>
+        <div>พิมพ์จากระบบ Huaytad Lesson Plan · โรงเรียนบ้านห้วยตาด (${todayDateStr})</div>
         <div>หน้า 1 จาก 1</div>
       </footer>
     </article>
@@ -2796,7 +2796,7 @@ function printReflectionDirect(ref, planId, unitTitle) {
       </div>
 
       <footer class="print-meta-footer" style="margin-top:35px;">
-        <div>พิมพ์จากระบบ Teaching Space · โรงเรียนบ้านห้วยตาด (${todayDateStr})</div>
+        <div>พิมพ์จากระบบ Huaytad Lesson Plan · โรงเรียนบ้านห้วยตาด (${todayDateStr})</div>
         <div>หน้า 1 จาก 1</div>
       </footer>
     </article>
