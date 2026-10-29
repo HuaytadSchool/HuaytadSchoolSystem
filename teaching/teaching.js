@@ -305,7 +305,7 @@ function renderLoads(container) {
     `;
   });
 
-  container.innerHTML = html;
+  container.innerHTML = `<div class="cards-grid">${html}</div>`;
 }
 
 // Tab 2: บันทึกหลังสอน
@@ -353,23 +353,218 @@ function renderReflections(container) {
     `;
   });
 
-  container.innerHTML = html;
+  container.innerHTML = `<div class="cards-grid">${html}</div>`;
 }
 
 // Tab 3: รายการรอตรวจ (สำหรับหัวหน้ากลุ่มสาระ และวิชาการ)
-function renderReviews(container) {
+// Tab 3: รายการรอตรวจ (สำหรับหัวหน้ากลุ่มสาระ และวิชาการ)
+async function renderReviews(container) {
   container.innerHTML = `
-    <div class="load-card" style="text-align:center; padding: 36px 16px;">
-      <div class="empty-icon">${svg('fileText', 44, 1.5)}</div>
-      <div style="font-size: 16px; font-weight:800; margin-bottom: 6px;">ระบบตรวจรับรองผ่าน LINE Chat</div>
-      <p style="font-size: 13px; color: #64748b; max-width: 460px; margin: 0 auto 16px;">
-        เมื่อครูส่งแผนการสอน ระบบจะส่งการ์ดแจ้งเตือน (Flex Message) ไปที่แชท LINE ของท่านโดยตรง พร้อมปุ่มเปิดดู PDF และปุ่มอนุมัติ/ส่งกลับแก้ไข
-      </p>
-      <a href="https://line.me/R/nv/chat" class="btn-primary" style="margin: 0 auto;">
-        ${svg('arrowRight', 14)} <span>เปิด LINE เพื่อตรวจแผน</span>
-      </a>
+    <div style="text-align:center; padding:40px 16px;">
+      <div class="spinner" style="margin:0 auto 12px;"></div>
+      <p style="color:#64748b; font-size:13px;">กำลังโหลดรายการแผนการสอนที่รอตรวจ...</p>
+    </div>`;
+
+  try {
+    const list = await api.getPendingReviews(state.teacher.lineUserId);
+    state.pendingReviewsList = list || [];
+    
+    // อัปเดตตัวเลข badge
+    const badge = document.getElementById('review-badge');
+    if (badge) {
+      badge.innerText = state.pendingReviewsList.length;
+      badge.style.display = state.pendingReviewsList.length > 0 ? 'inline-block' : 'none';
+    }
+
+    if (state.pendingReviewsList.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">${svg('checkCircle', 44, 1.5)}</div>
+          <p style="margin-top:10px; font-weight:700;">ไม่มีแผนการสอนที่รอการตรวจในขณะนี้</p>
+          <small class="text-muted">เมื่อมีครูส่งแผนการสอนเข้ามา รายการจะแสดงขึ้นที่นี่โดยอัตโนมัติ</small>
+        </div>`;
+      return;
+    }
+
+    let html = '';
+    state.pendingReviewsList.forEach(item => {
+      const isHeadReview = item.review_role === 'Head';
+      const roleBadge = isHeadReview 
+        ? `<span class="status-badge status-pending_head">${svg('clock', 12)} รอหัวหน้ากลุ่มสาระตรวจ</span>`
+        : `<span class="status-badge status-pending_academic">${svg('eye', 12)} รอฝ่ายวิชาการรับรอง</span>`;
+
+      html += `
+        <div class="load-card">
+          <div class="load-header">
+            <div>
+              <span class="subject-code">${esc(item.subject_code)}</span>
+              <div class="subject-name">${esc(item.subject_name)} (ชั้น ${esc(item.classroom)})</div>
+              <div class="classroom-tag" style="margin-top:2px;">
+                ผู้สอน: <strong>${esc(item.teacher_name)}</strong> ${item.teacher_dept ? '(' + esc(item.teacher_dept) + ')' : ''}
+              </div>
+            </div>
+            <div>${roleBadge}</div>
+          </div>
+
+          <div style="font-size:13px; color:#475569; margin: 10px 0; background:#f8fafc; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
+            <div><strong>หน่วย/เรื่อง:</strong> ${esc(item.unit_title)} (${item.teaching_hours || 0} ชม.)</div>
+            <div><strong>ฉบับที่:</strong> ฉบับที่ ${item.version || 1} • ส่งเมื่อ: ${formatDate(item.submitted_at)}</div>
+          </div>
+
+          <div class="load-info-row">
+            <div>
+              <button class="btn-secondary" onclick="openHistoryModal('${item.plan_id}')">
+                ${svg('clock', 14)} <span>ประวัติ</span>
+              </button>
+            </div>
+            <div style="display:flex; gap:8px;">
+              ${item.drive_pdf_url ? `
+                <a href="${item.drive_pdf_url}" target="_blank" class="btn-secondary" style="text-decoration:none;">
+                  ${svg('fileText', 14)} <span>เปิดดู PDF</span>
+                </a>
+              ` : ''}
+              <button class="btn-primary" onclick="openReviewModal('${item.plan_id}')">
+                ${svg('check', 14)} <span>ตรวจรับรอง</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    container.innerHTML = `<div class="cards-grid">${html}</div>`;
+
+  } catch (err) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">${svg('alert', 40, 1.5)}</div>
+        <p style="color:#dc2626;">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
+        <small class="text-muted">${esc(err.message)}</small>
+      </div>`;
+  }
+}
+
+// Modal ตรวจรับรองแผนการสอน
+function openReviewModal(planId) {
+  const item = (state.pendingReviewsList || []).find(p => String(p.plan_id) === String(planId));
+  if (!item) return;
+
+  const isHead = item.review_role === 'Head';
+  const passLabel = isHead ? 'ผ่านการตรวจ (ส่งต่อให้ฝ่ายวิชาการรับรอง)' : 'รับรองแผนสมบูรณ์ (อนุมัติให้เริ่มบันทึกหลังสอน)';
+
+  const content = `
+    <div class="modal-header">
+      <div class="modal-title">ตรวจรับรองแผนการสอน</div>
+      <button class="modal-close-btn" onclick="closeModal()">${svg('x', 18)}</button>
     </div>
+
+    <div style="background:#f1f5f9; padding:12px 14px; border-radius:8px; font-size:13px; margin-bottom:16px; border:1px solid #e2e8f0;">
+      <div><strong>วิชา:</strong> ${esc(item.subject_code)} ${esc(item.subject_name)} (ชั้น ${esc(item.classroom)})</div>
+      <div><strong>ผู้สอน:</strong> ${esc(item.teacher_name)} | <strong>หน่วย:</strong> ${esc(item.unit_title)} (ฉบับที่ ${item.version})</div>
+    </div>
+
+    ${item.drive_pdf_url ? `
+      <div style="margin-bottom:16px;">
+        <a href="${item.drive_pdf_url}" target="_blank" class="btn-secondary" style="width:100%; justify-content:center; padding:10px; text-decoration:none; display:flex;">
+          ${svg('fileText', 16)} <span>คลิกเพื่อเปิดอ่านไฟล์ PDF ใน Google Drive</span>
+        </a>
+      </div>
+    ` : ''}
+
+    <form id="review-form">
+      <div class="form-group">
+        <label class="form-label">ผลการพิจารณา *</label>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <label style="display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; cursor:pointer; background:#f0fdf4;">
+            <input type="radio" name="review_action" value="Pass" checked onchange="toggleCommentRequirement(false)"/>
+            <div>
+              <div style="font-weight:700; color:#15803d;">อนุมัติ / ผ่านการตรวจ</div>
+              <small style="color:#64748b;">${passLabel}</small>
+            </div>
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; cursor:pointer; background:#fef2f2;">
+            <input type="radio" name="review_action" value="Revise" onchange="toggleCommentRequirement(true)"/>
+            <div>
+              <div style="font-weight:700; color:#b91c1c;">ส่งกลับเพื่อแก้ไข</div>
+              <small style="color:#64748b;">ให้ครูผู้สอนปรับปรุงแผนตามข้อเสนอแนะและส่งใหม่</small>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:14px;">
+        <label class="form-label" id="review-comment-label">ข้อเสนอแนะ / ความเห็นเพิ่มเติม</label>
+        <textarea id="review-comment" class="form-textarea" rows="3" placeholder="ระบุความเห็นหรือจุดที่ต้องปรับปรุงแก้ไข..."></textarea>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button type="button" class="btn-secondary" style="flex:1; justify-content:center;" onclick="closeModal()">
+          ยกเลิก
+        </button>
+        <button type="button" class="btn-primary" style="flex:1; justify-content:center;" onclick="submitReviewAction('${item.plan_id}')">
+          ${svg('check', 14)} <span>บันทึกผลการตรวจ</span>
+        </button>
+      </div>
+    </form>
   `;
+
+  showModal(content);
+}
+
+function toggleCommentRequirement(isRequired) {
+  const label = document.getElementById('review-comment-label');
+  const textarea = document.getElementById('review-comment');
+  if (label && textarea) {
+    if (isRequired) {
+      label.innerHTML = 'ข้อเสนอแนะ / เหตุผลการส่งกลับแก้ไข <span style="color:#dc2626;">*</span>';
+      textarea.setAttribute('required', 'required');
+      textarea.focus();
+    } else {
+      label.innerHTML = 'ข้อเสนอแนะ / ความเห็นเพิ่มเติม (ไม่บังคับ)';
+      textarea.removeAttribute('required');
+    }
+  }
+}
+
+async function submitReviewAction(planId) {
+  const selectedRadio = document.querySelector('input[name="review_action"]:checked');
+  if (!selectedRadio) return;
+
+  const action = selectedRadio.value;
+  const comment = document.getElementById('review-comment').value.trim();
+
+  if (action === 'Revise' && !comment) {
+    Swal.fire('กรุณาระบุข้อเสนอแนะ', 'กรณีส่งกลับแก้ไข ต้องระบุเหตุผลหรือจุดที่ต้องปรับปรุงให้ครูทราบด้วยครับ', 'warning');
+    return;
+  }
+
+  closeModal();
+  showLoader(true, 'กำลังบันทึกผลการตรวจ...');
+
+  try {
+    await api.reviewLessonPlan({
+      planId: planId,
+      action: action,
+      comment: comment,
+      lineUserId: state.teacher.lineUserId
+    });
+
+    Swal.fire({
+      icon: 'success',
+      title: action === 'Pass' ? 'ตรวจรับรองเรียบร้อย' : 'ส่งกลับแก้ไขแล้ว',
+      text: 'ระบบได้บันทึกประวัติและแจ้งเตือนไปยังครูผู้สอนทาง LINE เรียบร้อยแล้ว',
+      confirmButtonColor: '#1e3a8a'
+    }).then(async () => {
+      // โหลดหน้าจอรอตรวจใหม่
+      const container = document.getElementById('tab-content');
+      await renderReviews(container);
+    });
+
+  } catch (err) {
+    Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+  } finally {
+    showLoader(false);
+  }
 }
 
 // --------------------------------------------------------------------------

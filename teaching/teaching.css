@@ -54,9 +54,9 @@ body {
 }
 
 .top-bar-inner {
-  max-width: 960px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 12px 16px;
+  padding: 14px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -107,9 +107,9 @@ body {
 
 /* Container */
 .main-container {
-  max-width: 960px;
-  margin: 16px auto;
-  padding: 0 16px;
+  max-width: 1200px;
+  margin: 20px auto;
+  padding: 0 20px;
 }
 
 /* User Card */
@@ -491,6 +491,31 @@ body {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* Grid Layout for Tablet & Desktop */
+.cards-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 680px) {
+  .cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .modal-content {
+    max-width: 600px;
+  }
+}
+
+@media (min-width: 1040px) {
+  .cards-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .modal-content {
+    max-width: 680px;
+  }
 }
 
 @media (max-width: 600px) {
