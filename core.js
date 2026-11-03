@@ -357,13 +357,23 @@ function renderRangeCal(id) {
   for (let i = 0; i < first; i++) cells += '<div></div>';
   for (let d = 1; d <= dim; d++) {
     const iso = toISO(year, month, d);
+    const dow = new Date(year, month, d).getDay();
+    const hol = (_holidays || []).find(h => normDate(h.date) === iso);
+    const isHoliday = !!hol;
+    const isWeekend = (dow === 0 || dow === 6);
     const isEnd = iso === start || iso === end;
     const inRange = start && end && iso > start && iso < end;
-    let bg = 'transparent', color = '#0f172a';
+    let bg = 'transparent', color = (isWeekend || isHoliday) ? '#ef4444' : '#0f172a';
     if (isEnd) { bg = '#2563eb'; color = '#fff'; }
     else if (inRange) { bg = '#dbeafe'; color = '#1d4ed8'; }
+    else if (isHoliday) { bg = '#fee2e2'; }
+    else if (isWeekend) { bg = '#fef2f2'; }
     const border = (iso === today && !isEnd) ? 'border:1px solid #2563eb;' : '';
-    cells += `<div onclick="pickRangeDay('${id}','${iso}')" class="dc-hover" style="cursor:pointer;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:12.5px;border-radius:8px;background:${bg};color:${color};${border}">${d}</div>`;
+    const titleAttr = isHoliday ? ` title="${esc(hol.name)} (วันหยุด)"` : '';
+    cells += `<div onclick="pickRangeDay('${id}','${iso}')"${titleAttr} class="dc-hover" style="cursor:pointer;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12.5px;border-radius:8px;background:${bg};color:${color};${border}">
+      <span>${d}</span>
+      ${isHoliday && !isEnd ? '<span style="width:3px;height:3px;border-radius:50%;background:#ef4444;margin-top:1px"></span>' : ''}
+    </div>`;
   }
   const summary = start ? (end ? `${fmtThai(start)} — ${fmtThai(end)}` : `${fmtThai(start)} · แตะเลือกวันสิ้นสุด`) : 'แตะเลือกวันเริ่มลา';
   return `

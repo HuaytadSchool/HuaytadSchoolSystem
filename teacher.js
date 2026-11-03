@@ -164,6 +164,9 @@ window.renderCalendarTab = (filterType = '') => {
     }
   }
 
+  // holiday map
+  const holidayMap = Object.fromEntries((_holidays || []).map(h => [normDate(h.date), h]));
+
   // calendar grid
   const firstDay    = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -178,16 +181,41 @@ window.renderCalendarTab = (filterType = '') => {
     const iso = toISO(year, month, d);
     const dow = new Date(year, month, d).getDay();
     const r   = dateLeaves[iso];
+    const hol = holidayMap[iso];
     const dot = r ? (r.color_code || typeColor(r.leave_type_id)) : '';
     const isToday = iso === today;
-    const bg = isToday ? '#dcfce7' : r ? `${dot}22` : (dow===0||dow===6) ? '#fef2f2' : '';
-    cells += `<div style="text-align:center;font-size:12.5px;border-radius:8px;padding:4px 1px;${bg?`background:${bg}`:''};${isToday?'color:#16a34a;font-weight:700':''}">
-      ${d}<div style="height:5px;display:flex;justify-content:center;margin-top:1px">${dot?`<div style="width:5px;height:5px;border-radius:50%;background:${dot}"></div>`:''}</div>
+    const isWeekend = (dow === 0 || dow === 6);
+    const isHoliday = !!hol;
+
+    let bg = '';
+    if (isToday) bg = '#dcfce7';
+    else if (r) bg = `${dot}22`;
+    else if (isHoliday) bg = '#fee2e2';
+    else if (isWeekend) bg = '#fef2f2';
+
+    let numColor = '#1e293b';
+    if (isToday) numColor = '#16a34a';
+    else if (isHoliday || isWeekend) numColor = '#ef4444';
+
+    const titleAttr = isHoliday ? ` title="${esc(hol.name)} (${esc(hol.type || 'วันหยุด')})"` : '';
+
+    cells += `<div onclick="showTeacherDayDetail('${iso}')"${titleAttr} class="dc-hover" style="cursor:pointer;text-align:center;font-size:12.5px;border-radius:8px;padding:4px 1px;${bg ? `background:${bg};` : ''}color:${numColor};${isToday ? 'font-weight:700;' : ''}">
+      ${d}
+      <div style="height:6px;display:flex;justify-content:center;align-items:center;gap:2px;margin-top:1px">
+        ${dot ? `<div style="width:5px;height:5px;border-radius:50%;background:${dot}"></div>` : ''}
+        ${isHoliday ? `<div style="width:5px;height:5px;border-radius:50%;background:#ef4444" title="${esc(hol.name)}"></div>` : ''}
+      </div>
     </div>`;
   }
   const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
   for (let i = 1; i <= totalCells - firstDay - daysInMonth; i++)
     cells += `<div style="text-align:center;font-size:12px;color:#cbd5e1;padding:4px 0">${i}</div>`;
+
+  // month holidays list
+  const monthHolidays = (_holidays || []).filter(h => {
+    const hd = parseISO(normDate(h.date));
+    return hd.getFullYear() === year && hd.getMonth() === month;
+  }).sort((a,b) => normDate(a.date).localeCompare(normDate(b.date)));
 
   // legend (unique types, preserve insertion order)
   const seen = new Map();
@@ -195,9 +223,32 @@ window.renderCalendarTab = (filterType = '') => {
     if (r.status !== 'Cancelled' && !seen.has(r.leave_type_id))
       seen.set(r.leave_type_id, { id: r.leave_type_id, name: r.type_name||typeName(r.leave_type_id), color: r.color_code||typeColor(r.leave_type_id) });
   const legendItems = [...seen.values()];
-  const legend = legendItems.map(t =>
+  let legend = legendItems.map(t =>
     `<div style="display:flex;align-items:center;gap:5px;font-size:11.5px"><div style="width:8px;height:8px;border-radius:50%;background:${t.color}"></div>${esc(t.name)}</div>`
   ).join('');
+  if (monthHolidays.length || (_holidays && _holidays.length)) {
+    legend += `<div style="display:flex;align-items:center;gap:5px;font-size:11.5px"><div style="width:8px;height:8px;border-radius:50%;background:#ef4444"></div>วันหยุด</div>`;
+  }
+
+  const holidaysListHtml = monthHolidays.length ? `
+    <div style="margin-top:12px;padding-top:10px;border-top:1px dashed #e2e8f0">
+      <div style="font-size:11.5px;font-weight:700;color:#ef4444;margin-bottom:6px;display:flex;align-items:center;gap:5px">
+        ${svg('calendar', 13)} วันหยุดประจำเดือน ${THAI_MONTHS[month]} (${monthHolidays.length} วัน)
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        ${monthHolidays.map(h => {
+          const hd = parseISO(normDate(h.date));
+          return `
+            <div onclick="showTeacherDayDetail('${normDate(h.date)}')" class="dc-hover" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:#fef2f2;border:1px solid #fee2e2;border-radius:8px;padding:6px 10px;font-size:11.5px">
+              <div style="font-weight:700;color:#b91c1c;display:flex;align-items:center;gap:6px">
+                <span style="width:5px;height:5px;border-radius:50%;background:#ef4444;display:inline-block"></span>
+                ${esc(h.name)}
+              </div>
+              <div style="color:#ef4444;font-weight:600;font-size:11px">${hd.getDate()} ${THAI_MONTHS[month]}</div>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>` : '';
 
   // leave list with filter
   const sorted   = history.slice().sort((a,b) => normDate(b.start_date).localeCompare(normDate(a.start_date)));
@@ -249,6 +300,7 @@ window.renderCalendarTab = (filterType = '') => {
         <div style="text-align:center;font-size:15px;font-weight:800;margin-bottom:10px">${THAI_MONTHS_FULL[month]} ${year+543}</div>
         <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">${dayHdrs}${cells}</div>
         ${legend ? `<div style="display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:12px;padding-top:10px;border-top:1px solid #f8fafc">${legend}</div>` : ''}
+        ${holidaysListHtml}
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div style="font-size:14px;font-weight:800">รายการลาของคุณ</div>
@@ -261,6 +313,46 @@ window.renderCalendarTab = (filterType = '') => {
     </div>`;
 };
 window.calShowMore = () => { _calShown += 10; renderCalendarTab(_calFilter); };
+
+window.showTeacherDayDetail = (iso) => {
+  const hol = (_holidays || []).find(h => normDate(h.date) === iso);
+  const rec = (_teacherData.history || []).find(r => r.status !== 'Cancelled' && dateInRange(iso, r.start_date, r.end_date));
+  if (!hol && !rec) return;
+
+  let body = `<div style="text-align:center;margin-bottom:14px">
+    <div style="font-size:15px;font-weight:800;color:#0f172a">${fmtThai(iso)}</div>
+  </div>`;
+
+  if (hol) {
+    body += `
+      <div style="background:#fee2e2;border:1px solid #fecaca;border-radius:12px;padding:12px;margin-bottom:10px;display:flex;align-items:center;gap:10px">
+        <div style="width:36px;height:36px;border-radius:50%;background:#ef4444;color:#fff;display:flex;align-items:center;justify-content:center;flex:none">${svg('calendar', 18)}</div>
+        <div style="text-align:left">
+          <div style="font-size:13px;font-weight:800;color:#991b1b">${esc(hol.name)}</div>
+          <div style="font-size:11.5px;color:#dc2626">${esc(hol.type || 'วันหยุดราชการ/โรงเรียน')}</div>
+        </div>
+      </div>`;
+  }
+
+  if (rec) {
+    const sm = statusMeta(rec.status);
+    body += `
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px;text-align:left">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="font-size:13px;font-weight:800;color:#1e293b">${esc(rec.type_name || typeName(rec.leave_type_id))}</div>
+          <span style="font-size:11px;font-weight:700;color:${sm.color};background:${sm.bg};padding:2px 8px;border-radius:6px">${sm.label}</span>
+        </div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:4px">ระยะเวลา: ${fmtThai(normDate(rec.start_date))} - ${fmtThai(normDate(rec.end_date))} (${rec.total_days} วัน)</div>
+        ${rec.reason ? `<div style="font-size:12px;color:#475569">เหตุผล: ${esc(rec.reason)}</div>` : ''}
+      </div>`;
+  }
+
+  body += `
+    <div onclick="closeModal()" class="dc-hover" style="cursor:pointer;text-align:center;padding:10px;background:#2563eb;color:#fff;border-radius:10px;font-size:13px;font-weight:700;margin-top:14px">ตกลง</div>
+  `;
+
+  document.getElementById('modal-root').innerHTML = overlay(`<div style="width:100vw;max-width:340px;background:#fff;border-radius:18px;padding:20px;box-shadow:0 20px 40px rgba(15,23,42,.15)">${body}</div>`);
+};
 
 // ── Stats tab ──
 window.statsSelectYear = (y) => { _statsAcadYear = y; closeModal(); renderStatsTab(); };

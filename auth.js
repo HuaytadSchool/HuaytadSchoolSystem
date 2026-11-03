@@ -14,7 +14,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     // reload, so without this the boot re-auth loops and can hang/error.
     if (sessionStorage.getItem('loggedOut')) {
       sessionStorage.removeItem('loggedOut');
+      try { localStorage.removeItem('admin_session'); } catch (e) {}
       showView('landing'); showLoader(false); return;
+    }
+
+    // Restore Admin session if available (valid for 7 days)
+    const savedAdminRaw = localStorage.getItem('admin_session');
+    if (savedAdminRaw) {
+      try {
+        const saved = JSON.parse(savedAdminRaw);
+        if (saved && saved.user && saved.user.role === 'Admin' && (Date.now() - (saved.timestamp || 0) < 7 * 86400000)) {
+          currentUser = saved.user;
+          await routeByRole();
+          return;
+        }
+      } catch (e) {
+        localStorage.removeItem('admin_session');
+      }
     }
     if (typeof liff !== 'undefined' && LIFF_ID && !LIFF_ID.includes('YOUR_')) {
       await liff.init({ liffId: LIFF_ID });
@@ -58,6 +74,12 @@ window.openAdminLogin = () => {
     showLoader(true);
     try {
       currentUser = await api.adminLogin(username, password);
+      try {
+        localStorage.setItem('admin_session', JSON.stringify({
+          user: currentUser,
+          timestamp: Date.now()
+        }));
+      } catch (e) {}
       closeModal();
       await routeByRole();
     } catch (err) { swalError(err.message); } finally { showLoader(false); }
@@ -158,6 +180,7 @@ window.logout = () => {
   }).then((r) => {
     if (!r.isConfirmed) return;
     sessionStorage.setItem('loggedOut', '1');
+    try { localStorage.removeItem('admin_session'); } catch (e) {}
     // Guard: a liff throw here must never block the reload (that was the "hang").
     try { if (typeof liff !== 'undefined' && liff.isLoggedIn && liff.isLoggedIn()) liff.logout(); }
     catch (e) { /* ignore */ }
