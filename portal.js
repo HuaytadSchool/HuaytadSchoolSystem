@@ -173,8 +173,8 @@ const DEPT_APPS = {
         icon: '<svg width="34" height="34" viewBox="0 0 48 48" fill="none"><rect x="7" y="10" width="34" height="31" rx="6" fill="#3b82f6"/><rect x="7" y="10" width="34" height="10" rx="4" fill="#1d4ed8"/><rect x="14" y="6" width="4" height="8" rx="2" fill="#93c5fd"/><rect x="30" y="6" width="4" height="8" rx="2" fill="#93c5fd"/><rect x="13" y="24" width="22" height="11" rx="3" fill="#fff"/><path d="M18 29.5l3 3 7-7" stroke="#16a34a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
       },
       {
-        name: 'ทะเบียนประวัติ / ก.พ.7',
-        hint: 'ข้อมูลบุคลากรและคำสั่ง',
+        name: 'ระบบประเมิน PA',
+        hint: 'ข้อตกลงในการพัฒนางาน (วPA)',
         ready: false,
         bg: '#f1f5f9',
         icon: '<svg width="34" height="34" viewBox="0 0 48 48" fill="none"><rect x="10" y="7" width="28" height="34" rx="5" fill="#94a3b8"/><rect x="15" y="15" width="18" height="3" rx="1.5" fill="#fff"/><rect x="15" y="22" width="14" height="3" rx="1.5" fill="#fff"/><rect x="15" y="29" width="10" height="3" rx="1.5" fill="#fff"/></svg>'
