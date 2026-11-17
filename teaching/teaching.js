@@ -6,7 +6,7 @@
  */
 
 const CONFIG = {
-  GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbzi5nZ-PkbsFl3ws6tYVknN-a3oRuvGfACiavH9BDYpDX4GPqrCdXJl1ElzlX59p3p8-g/exec",
+  GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbyuWqPsDPNaql9BNzhkeR7AXQYEPnF2w1zVvS3PheN3mI5uq1-P-iJQJldk5csLjMrWvg/exec",
   LIFF_ID: "2010662195-iJjI0NIA",
   MAX_FILE_SIZE_MB: 10
 };
@@ -49,6 +49,7 @@ function svg(name, size = 16, width = 2) {
 let state = {
   currentLineProfile: null,
   teacher: null,
+  isAcademic: false,
   activeTerm: null,
   loads: [],
   rounds: [],
@@ -63,6 +64,8 @@ let state = {
   reportFilterRound: '',
   reportFilterGroup: '',
   reportSubView: 'plans',
+  complianceFilter: 'all',
+  complianceSearch: '',
   manageSubTab: 'loads',
   subjectSearchKeyword: '',
   subjectFilterGroup: ''
@@ -131,6 +134,8 @@ async function initLiffAndApp() {
     const bootstrap = await api.getTeachingBootstrap(lineUserId);
 
     state.teacher = bootstrap.teacher;
+    state.isAcademic = Boolean(bootstrap.isAcademic || ['Academic', 'Admin', 'Director'].includes(state.teacher.role));
+    if (state.isAcademic) state.reportSubView = 'compliance';
     state.activeTerm = bootstrap.activeTerm;
     state.loads = bootstrap.loads || [];
     state.rounds = bootstrap.rounds || [];
@@ -204,7 +209,7 @@ function renderUserProfile() {
 }
 
 function renderTabs() {
-  const isReviewer = ['Head', 'Academic', 'Admin', 'Director'].includes(state.teacher.role) || state.pendingReviewsCount > 0;
+  const isReviewer = state.isAcademic || state.teacher.role === 'Head' || state.pendingReviewsCount > 0;
   const reviewTab = document.getElementById('tab-reviews-btn');
   if (reviewTab) {
     if (isReviewer) {
@@ -219,11 +224,10 @@ function renderTabs() {
     }
   }
 
-  // แท็บจัดการวิชาการ (สำหรับ Academic / Admin / Director)
-  const isAcademic = ['Academic', 'Admin', 'Director'].includes(state.teacher.role);
+  // แท็บจัดการวิชาการ (สำหรับผู้รับผิดชอบฝ่ายวิชาการ / Admin / Director)
   const manageTab = document.getElementById('tab-manage-btn');
   if (manageTab) {
-    manageTab.style.display = isAcademic ? 'flex' : 'none';
+    manageTab.style.display = state.isAcademic ? 'flex' : 'none';
   }
 }
 
@@ -643,6 +647,9 @@ async function renderManage(container) {
         <button class="subview-btn ${currentSubTab === 'subjects' ? 'active' : ''}" onclick="setManageSubTab('subjects')">
           ${svg('list', 14)} <span>คลังรายวิชา (${subjects.length})</span>
         </button>
+        <button class="subview-btn ${currentSubTab === 'settings' ? 'active' : ''}" onclick="setManageSubTab('settings')">
+          ${svg('settings', 14)} <span>ตั้งค่าฝ่ายวิชาการ</span>
+        </button>
       </div>
     </div>
   `;
@@ -845,9 +852,94 @@ async function renderManage(container) {
 
       ${subjectsTableHtml}
     `;
+  } else if (currentSubTab === 'settings') {
+    const teachersList = data.teachers || [];
+    const selectedIds = new Set((data.academicTeacherIds || []).map(String));
+    const reviewSteps = Number(data.reviewSteps || 2);
+
+    const teacherChecks = teachersList.map(t => {
+      const isBasePriv = ['Admin', 'Director'].includes(t.role);
+      const checked = isBasePriv || selectedIds.has(String(t.id));
+      return `
+        <label style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; border:1px solid #e2e8f0; border-radius:10px; background:${checked ? '#eff6ff' : '#ffffff'}; cursor:${isBasePriv ? 'default' : 'pointer'};">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <input type="checkbox" class="acad-staff-chk" value="${esc(t.id)}" ${checked ? 'checked' : ''} ${isBasePriv ? 'disabled' : ''}/>
+            <div>
+              <div style="font-size:13.5px; font-weight:700; color:#0f172a;">${esc(t.fullName)}</div>
+              <div style="font-size:11.5px; color:#64748b;">${esc(t.position || t.role)} ${t.department ? '· ' + esc(t.department) : ''}</div>
+            </div>
+          </div>
+          <span style="font-size:11px; font-weight:700; padding:3px 8px; border-radius:999px; background:${isBasePriv ? '#e2e8f0' : checked ? '#dbeafe' : '#f1f5f9'}; color:${isBasePriv ? '#475569' : checked ? '#1d4ed8' : '#64748b'};">
+            ${isBasePriv ? esc(t.role) + ' (อัตโนมัติ)' : checked ? 'ฝ่ายวิชาการ' : 'ครูผู้สอน'}
+          </span>
+        </label>
+      `;
+    }).join('');
+
+    html += `
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; padding:20px; box-shadow:var(--shadow-sm);">
+        <div style="margin-bottom:18px;">
+          <h3 style="font-size:15px; font-weight:800; color:#0f172a; margin-bottom:4px;">ผู้รับผิดชอบฝ่ายวิชาการ (ระบบส่งแผน)</h3>
+          <p style="font-size:12.5px; color:#64748b;">กำหนดครูที่ทำหน้าที่ตรวจรับรองแผนขั้นสุดท้ายและจัดการวิชาการ โดยไม่ต้องเปลี่ยน Role ในระบบลา</p>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:10px; margin-bottom:22px;">
+          ${teacherChecks}
+        </div>
+
+        <div style="border-top:1px solid #e2e8f0; padding-top:18px; margin-bottom:18px;">
+          <h3 style="font-size:15px; font-weight:800; color:#0f172a; margin-bottom:8px;">ขั้นตอนการตรวจรับรองแผน</h3>
+          <div style="display:flex; flex-wrap:wrap; gap:10px;">
+            <label style="flex:1; min-width:220px; display:flex; align-items:flex-start; gap:8px; padding:12px; border:1px solid #cbd5e1; border-radius:10px; cursor:pointer;">
+              <input type="radio" name="review_steps_opt" value="2" ${reviewSteps !== 1 ? 'checked' : ''} style="margin-top:3px;"/>
+              <div>
+                <div style="font-weight:700; font-size:13.5px; color:#0f172a;">2 ขั้นตอน (มาตรฐาน)</div>
+                <div style="font-size:12px; color:#64748b;">ครูส่งแผน → ผู้ตรวจประจำวิชา → ฝ่ายวิชาการ/ผอ. รับรอง</div>
+              </div>
+            </label>
+            <label style="flex:1; min-width:220px; display:flex; align-items:flex-start; gap:8px; padding:12px; border:1px solid #cbd5e1; border-radius:10px; cursor:pointer;">
+              <input type="radio" name="review_steps_opt" value="1" ${reviewSteps === 1 ? 'checked' : ''} style="margin-top:3px;"/>
+              <div>
+                <div style="font-weight:700; font-size:13.5px; color:#0f172a;">1 ขั้นตอน (โรงเรียนขนาดเล็ก)</div>
+                <div style="font-size:12px; color:#64748b;">ครูส่งแผน → ฝ่ายวิชาการ/ผอ. ตรวจรับรองจบในขั้นตอนเดียว</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end;">
+          <button class="btn-primary" onclick="handleSaveAcademicStaff()">
+            ${svg('save', 14)} <span>บันทึกการตั้งค่าฝ่ายวิชาการ</span>
+          </button>
+        </div>
+      </div>
+    `;
   }
 
   container.innerHTML = html;
+}
+
+async function handleSaveAcademicStaff() {
+  const checkedIds = Array.from(document.querySelectorAll('.acad-staff-chk:checked:not(:disabled)')).map(el => el.value);
+  const stepsEl = document.querySelector('input[name="review_steps_opt"]:checked');
+  const reviewSteps = stepsEl ? Number(stepsEl.value) : 2;
+  showLoader(true, 'กำลังบันทึกการตั้งค่าฝ่ายวิชาการ...');
+  try {
+    const res = await api.saveAcademicStaff({
+      academicTeacherIds: checkedIds,
+      reviewSteps: reviewSteps,
+      lineUserId: state.teacher.lineUserId
+    });
+    if (state.manageData) {
+      state.manageData.academicTeacherIds = res.academicTeacherIds || checkedIds;
+      state.manageData.reviewSteps = res.reviewSteps || reviewSteps;
+    }
+    showLoader(false);
+    Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', text: 'อัปเดตสิทธิ์ฝ่ายวิชาการและขั้นตอนการตรวจแผนแล้ว', timer: 1600, showConfirmButton: false });
+  } catch (err) {
+    showLoader(false);
+    Swal.fire({ icon: 'error', title: 'ไม่สามารถบันทึกได้', text: err.message });
+  }
 }
 
 function setManageSubTab(subTab) {
@@ -1587,7 +1679,7 @@ async function openPlanReflectionsListModal(planId, unitTitle) {
           : `<span class="status-badge status-draft">${svg('edit', 11)} ฉบับร่าง</span>`;
 
         // สิทธิ์ปลดล็อก: หัวหน้ากลุ่มสาระ, ฝ่ายวิชาการ, Admin (และไม่ใช่ผู้สอนเอง)
-        const isReviewerOrAdmin = ['Academic', 'Admin', 'Director', 'Head'].includes(state.teacher.role);
+        const isReviewerOrAdmin = state.isAcademic || state.teacher.role === 'Head';
 
         return `
           <div style="border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:12px; background:#ffffff;">
@@ -2052,6 +2144,11 @@ async function renderReports(container) {
     <!-- แถบสลับมุมมอง & เครื่องมือส่งออกข้อมูล -->
     <div class="action-toolbar no-print">
       <div class="subview-tabs">
+        ${state.isAcademic ? `
+          <button class="subview-btn ${currentSubView === 'compliance' ? 'active' : ''}" onclick="setReportSubView('compliance')">
+            ${svg('barChart', 14)} สรุปรายครู (${(d.teacherSummary || []).length})
+          </button>
+        ` : ''}
         <button class="subview-btn ${currentSubView === 'plans' ? 'active' : ''}" onclick="setReportSubView('plans')">
           ${svg('fileText', 14)} ทะเบียนส่งแผน (${(d.plans || []).length})
         </button>
@@ -2072,7 +2169,9 @@ async function renderReports(container) {
   `;
 
   // แสดงผลตารางตาม SubView
-  if (currentSubView === 'plans') {
+  if (currentSubView === 'compliance' && state.isAcademic) {
+    html += renderTeacherComplianceDashboard(d.teacherSummary || []);
+  } else if (currentSubView === 'plans') {
     html += renderPlansReportTable(d.plans || []);
   } else {
     html += renderReflectionsReportTable(d.reflections || []);
@@ -2115,6 +2214,118 @@ async function onFilterReportChange() {
 function setReportSubView(view) {
   state.reportSubView = view;
   renderReports(document.getElementById('tab-content'));
+}
+
+function setComplianceFilter(f) {
+  state.complianceFilter = f;
+  renderReports(document.getElementById('tab-content'));
+}
+
+function onComplianceSearch(v, el) {
+  const pos = el ? el.selectionStart : v.length;
+  state.complianceSearch = v;
+  renderReports(document.getElementById('tab-content'));
+  const inp = document.getElementById('compliance-search-input');
+  if (inp) { inp.focus(); inp.setSelectionRange(pos, pos); }
+}
+
+/**
+ * Dashboard สรุปรายครู (ติดตามว่าครูคนไหนยังไม่ส่งแผน สำหรับ ผอ. และ ฝ่ายวิชาการ)
+ */
+function renderTeacherComplianceDashboard(list) {
+  if (!list || list.length === 0) {
+    return `
+      <div class="empty-state">
+        <div class="empty-icon">${svg('barChart', 40, 1.5)}</div>
+        <p style="margin-top:10px;">ยังไม่มีข้อมูลภาระการสอนของครูในรอบที่เลือก</p>
+      </div>
+    `;
+  }
+
+  const missingTeachersCount = list.filter(t => t.missing_count > 0 || t.revise_count > 0).length;
+  const completeTeachersCount = list.length - missingTeachersCount;
+  const kw = (state.complianceSearch || '').trim().toLowerCase();
+
+  const filtered = list.filter(t => {
+    const hasIssue = t.missing_count > 0 || t.revise_count > 0;
+    if (state.complianceFilter === 'missing' && !hasIssue) return false;
+    if (state.complianceFilter === 'complete' && hasIssue) return false;
+    if (kw && !(`${t.teacher_name} ${t.department}`).toLowerCase().includes(kw)) return false;
+    return true;
+  });
+
+  const filterBar = `
+    <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:12px 16px; margin-bottom:14px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px;">
+      <div style="display:flex; flex-wrap:wrap; gap:8px;">
+        <button class="subview-btn ${state.complianceFilter === 'all' ? 'active' : ''}" onclick="setComplianceFilter('all')">
+          ทั้งหมด (${list.length})
+        </button>
+        <button class="subview-btn ${state.complianceFilter === 'missing' ? 'active' : ''}" onclick="setComplianceFilter('missing')" style="${state.complianceFilter === 'missing' ? '' : 'color:#b91c1c;'}">
+          ยังไม่ครบ / ค้างส่ง (${missingTeachersCount})
+        </button>
+        <button class="subview-btn ${state.complianceFilter === 'complete' ? 'active' : ''}" onclick="setComplianceFilter('complete')" style="${state.complianceFilter === 'complete' ? '' : 'color:#15803d;'}">
+          ส่งครบแล้ว (${completeTeachersCount})
+        </button>
+      </div>
+      <div style="position:relative; min-width:220px;">
+        <input id="compliance-search-input" type="text" class="search-input" placeholder="ค้นหาชื่อครู..." value="${esc(state.complianceSearch || '')}" oninput="onComplianceSearch(this.value, this)" style="padding-left:32px;"/>
+        <span style="position:absolute; left:10px; top:10px; color:#94a3b8;">${svg('search', 14)}</span>
+      </div>
+    </div>
+  `;
+
+  const statusMeta = (st) => {
+    switch (st) {
+      case 'Approved': return { label: 'อนุมัติแล้ว', bg: '#dcfce7', color: '#15803d' };
+      case 'Pending_Academic': return { label: 'รอวิชาการ', bg: '#e0f2fe', color: '#0369a1' };
+      case 'Pending_Head': return { label: 'รอหัวหน้าตรวจ', bg: '#fef3c7', color: '#b45309' };
+      case 'Revise': return { label: 'ส่งกลับแก้ไข', bg: '#fee2e2', color: '#b91c1c' };
+      default: return { label: 'ยังไม่ส่ง', bg: '#fef2f2', color: '#dc2626' };
+    }
+  };
+
+  const cardsHtml = filtered.map(t => {
+    const pct = t.expected_count > 0 ? Math.round((t.submitted_count / t.expected_count) * 100) : 0;
+    const isComplete = t.missing_count === 0 && t.revise_count === 0;
+    const barColor = isComplete ? '#16a34a' : (pct >= 50 ? '#f59e0b' : '#dc2626');
+    const summaryBadge = isComplete
+      ? `<span style="font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:999px; background:#dcfce7; color:#15803d;">ส่งครบแล้ว</span>`
+      : `<span style="font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:999px; background:#fee2e2; color:#b91c1c;">ค้างส่ง ${t.missing_count} ${t.revise_count ? '· แก้ไข ' + t.revise_count : ''}</span>`;
+
+    const itemsHtml = (t.items || []).map(it => {
+      const sm = statusMeta(it.status);
+      return `
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 10px; border-radius:8px; background:#f8fafc; border:1px solid #e2e8f0; font-size:12px;">
+          <div style="min-width:0;">
+            <span style="font-weight:700; color:#1e3a8a;">${esc(it.subject_code)}</span>
+            <span style="color:#0f172a; font-weight:600;">${esc(it.subject_name)}</span>
+            <span style="color:#64748b;">(${esc(it.classroom)} · ${esc(it.round_title)})</span>
+          </div>
+          <span style="flex:none; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; background:${sm.bg}; color:${sm.color};">${sm.label}</span>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div style="background:#ffffff; border:1px solid ${isComplete ? '#e2e8f0' : '#fecaca'}; border-radius:14px; padding:16px; margin-bottom:12px; box-shadow:var(--shadow-sm);">
+        <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
+          <div>
+            <div style="font-size:15px; font-weight:800; color:#0f172a;">${esc(t.teacher_name)}</div>
+            <div style="font-size:12px; color:#64748b;">${esc(t.department || '-')} · ส่งแล้ว ${t.submitted_count}/${t.expected_count} รายการ (${pct}%)</div>
+          </div>
+          <div>${summaryBadge}</div>
+        </div>
+        <div style="height:8px; background:#f1f5f9; border-radius:999px; overflow:hidden; margin-bottom:12px;">
+          <div style="height:100%; width:${pct}%; background:${barColor}; border-radius:999px; transition:width .3s ease;"></div>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:8px;">
+          ${itemsHtml}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return filterBar + (cardsHtml || `<div class="empty-state"><p>ไม่พบรายชื่อครูตามเงื่อนไขที่เลือก</p></div>`);
 }
 
 /**

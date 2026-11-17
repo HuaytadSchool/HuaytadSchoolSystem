@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบจัดการการลาอิเล็กทรอนิกส์ · โรงเรียนบ้านห้วยตาด</title>
+  <title>โรงเรียนบ้านห้วยตาด · School Super App</title>
 
   <link rel="icon" type="image/png" href="img/logo-ht.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,108 +14,353 @@
   <!-- SweetAlert2 -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-  <link rel="stylesheet" href="styles.css?v=15">
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0;
+      font-family: 'Sarabun', system-ui, -apple-system, sans-serif;
+      background: #eef2f7;
+      color: #0f172a;
+      min-height: 100vh;
+    }
+
+    /* Loader */
+    .portal-loader {
+      position: fixed; inset: 0; z-index: 3000;
+      background: rgba(248, 250, 252, 0.94);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+      color: #2563eb; font-weight: 700; font-size: 14px;
+    }
+    .portal-spinner {
+      width: 38px; height: 38px; border-radius: 50%;
+      border: 4px solid #cbd5e1; border-top-color: #2563eb;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+    /* Login View */
+    .login-wrap {
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 24px 16px;
+      background: linear-gradient(180deg, #dbeafe 0%, #f1f5f9 55%);
+    }
+    .login-card {
+      width: 100%; max-width: 390px; background: #fff;
+      border-radius: 24px; overflow: hidden;
+      box-shadow: 0 22px 50px rgba(15, 23, 42, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+    }
+    .login-hero {
+      background: url('img/BG_User.png') center/cover no-repeat;
+      padding: 36px 24px 32px; text-align: center; color: #fff; position: relative;
+    }
+    .login-hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(180deg, rgba(15, 40, 100, 0.45), rgba(29, 78, 216, 0.72));
+    }
+    .login-hero-inner { position: relative; z-index: 1; }
+    .login-logo {
+      width: 68px; height: 68px; border-radius: 18px;
+      background: rgba(255, 255, 255, 0.92); padding: 6px;
+      margin: 0 auto 12px; display: block; object-fit: contain;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+    }
+    .login-body { padding: 26px 24px 28px; text-align: center; }
+    .btn-line {
+      width: 100%; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 14px; border-radius: 14px; background: #06C755; color: #fff;
+      font-weight: 700; font-size: 15.5px; font-family: inherit;
+      box-shadow: 0 8px 20px rgba(6, 199, 85, 0.3);
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+    .btn-line:hover { filter: brightness(0.96); }
+    .btn-line:active { transform: scale(0.98); }
+
+    /* Portal Shell */
+    .portal-shell {
+      max-width: 760px; margin: 0 auto; min-height: 100vh;
+      background: #f8fafc; box-shadow: 0 0 40px rgba(15, 23, 42, 0.06);
+      padding-bottom: 40px;
+    }
+    @media (max-width: 760px) { .portal-shell { box-shadow: none; } }
+
+    .hero {
+      background: url('img/BG_User.png') center/cover no-repeat;
+      padding: 18px 20px 64px; color: #fff; position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(180deg, rgba(15, 35, 90, 0.45) 0%, rgba(15, 45, 115, 0.62) 100%);
+    }
+    .hero-content { position: relative; z-index: 2; }
+    .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+    .school-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255, 255, 255, 0.16); backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 999px;
+      padding: 5px 12px 5px 6px; font-size: 12.5px; font-weight: 700;
+    }
+    .school-pill img { width: 24px; height: 24px; border-radius: 50%; background: #fff; padding: 2px; object-fit: contain; }
+    .hero-icon-btn {
+      width: 38px; height: 38px; border-radius: 50%; border: none;
+      background: rgba(255, 255, 255, 0.94); color: #1d4ed8;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+    }
+
+    .profile-row { display: flex; align-items: center; gap: 14px; }
+    .avatar-ring {
+      width: 58px; height: 58px; border-radius: 50%;
+      border: 2.5px solid rgba(255, 255, 255, 0.9);
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; font-weight: 800; flex: none; overflow: hidden;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+    }
+    .avatar-ring img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-name { font-size: 19px; font-weight: 800; line-height: 1.25; }
+    .profile-role {
+      display: inline-flex; align-items: center; gap: 6px; margin-top: 4px;
+      font-size: 12px; font-weight: 600; background: rgba(255, 255, 255, 0.2);
+      padding: 3px 10px; border-radius: 999px;
+    }
+
+    .main-sheet { position: relative; z-index: 3; margin: -34px 16px 0; }
+    .sheet-header {
+      background: #ffffff; border-radius: 18px; padding: 14px 18px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08); border: 1px solid #e2e8f0;
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      margin-bottom: 16px;
+    }
+    .sheet-title { font-size: 15px; font-weight: 800; color: #0f172a; }
+    .sheet-sub { font-size: 12px; color: #64748b; }
+
+    .dept-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    @media (max-width: 480px) {
+      .main-sheet { margin: -32px 12px 0; }
+      .dept-grid { gap: 10px; }
+      .dept-card { padding: 20px 12px 18px !important; border-radius: 18px !important; }
+      .dept-icon { width: 52px !important; height: 52px !important; border-radius: 15px !important; }
+      .dept-name { font-size: 14.5px !important; }
+    }
+
+    .dept-card {
+      position: relative; background: #ffffff; border: 1px solid #e2e8f0;
+      border-radius: 20px; padding: 26px 18px 22px; text-decoration: none; color: inherit;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; gap: 12px; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+      transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+      cursor: pointer;
+    }
+    .dept-card.ready:hover {
+      transform: translateY(-3px); border-color: #93c5fd;
+      box-shadow: 0 14px 28px rgba(37, 99, 235, 0.12);
+    }
+    .dept-card.soon { background: #f8fafc; border-style: dashed; border-color: #cbd5e1; opacity: 0.78; }
+
+    .card-badge {
+      position: absolute; top: 12px; right: 12px;
+      font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px;
+    }
+    .badge-alert { background: #ef4444; color: #fff; }
+    .badge-ready { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
+    .badge-soon { background: #f1f5f9; color: #64748b; }
+
+    .dept-icon {
+      width: 68px; height: 68px; border-radius: 20px;
+      display: flex; align-items: center; justify-content: center; margin-top: 4px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 6px 14px rgba(15, 23, 42, 0.06);
+    }
+    .dept-name { font-size: 16px; font-weight: 800; color: #0f172a; line-height: 1.3; }
+    .dept-hint { font-size: 12px; font-weight: 600; color: #64748b; }
+
+    .admin-strip {
+      margin-top: 14px; background: #0f172a; color: #fff; border-radius: 16px;
+      padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; text-decoration: none; box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16);
+    }
+
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: rgba(15, 23, 42, 0.92); color: #fff; padding: 10px 18px;
+      border-radius: 999px; font-size: 13px; font-weight: 600;
+      opacity: 0; pointer-events: none; transition: all 0.2s ease; z-index: 9999; white-space: nowrap;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
 </head>
 <body>
 
-  <!-- Full screen loader -->
-  <div id="loader" class="dc-loader">
-    <div class="dc-spinner"></div>
-    <p>กำลังโหลดข้อมูล...</p>
+  <div id="portal-loader" class="portal-loader">
+    <div class="portal-spinner"></div>
+    <div>กำลังเชื่อมต่อระบบโรงเรียน...</div>
   </div>
 
-  <!-- ===== VIEW: LANDING (LINE login) ===== -->
-  <div id="view-landing" class="view-section" style="display:none;min-height:100vh;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px">
-    <div style="width:100%;max-width:380px;background:#ffffff;border:1px solid #e2e8f0;border-radius:20px;box-shadow:0 20px 50px rgba(15,23,42,0.08);overflow:hidden;animation:fadeUp .4s ease">
-      <div style="background:linear-gradient(135deg,#2563eb,#1d4ed8);padding:40px 28px 32px;text-align:center;color:#fff">
-        <div id="landing-logo" style="width:64px;height:64px;border-radius:16px;background:rgba(255,255,255,0.16);border:1.5px solid rgba(255,255,255,0.35);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:28px;font-weight:800;overflow:hidden">รร</div>
-        <div style="font-size:13px;opacity:.9;font-weight:500;letter-spacing:.02em">โรงเรียนบ้านห้วยตาด</div>
-        <div style="font-size:11px;opacity:.72;margin-top:2px">สำนักงานคณะกรรมการการศึกษาขั้นพื้นฐาน (สพฐ.)</div>
-      </div>
-      <div style="padding:28px 28px 32px;text-align:center">
-        <div style="font-size:20px;font-weight:700;margin-bottom:6px">ระบบจัดการการลาอิเล็กทรอนิกส์</div>
-        <div style="font-size:13px;color:#64748b;line-height:1.6;margin-bottom:28px">สำหรับข้าราชการครูและบุคลากรทางการศึกษา<br/>ยื่นใบลา ตรวจสอบสถานะ และอนุมัติได้ในที่เดียว</div>
-        <div id="login-loading" style="display:none;align-items:center;justify-content:center;gap:10px;padding:14px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;font-size:14px;color:#475569;font-weight:600">
-          <div class="dc-spinner" style="width:18px;height:18px;border-width:2.5px;border-top-color:#06C755"></div>
-          กำลังเชื่อมต่อ LINE...
+  <!-- ===== VIEW 1: LOGIN ===== -->
+  <div id="view-login" class="login-wrap" style="display:none">
+    <div class="login-card">
+      <div class="login-hero">
+        <div class="login-hero-inner">
+          <img src="img/logo-ht.png" alt="Logo" class="login-logo" onerror="this.style.display='none'">
+          <div style="font-size:17px;font-weight:800">โรงเรียนบ้านห้วยตาด</div>
+          <div style="font-size:12px;opacity:0.88;margin-top:2px">Huaytad School Super App</div>
         </div>
-        <div id="login-btn" onclick="handleLogin()" style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;border-radius:12px;background:#06C755;color:#fff;font-weight:700;font-size:15px;box-shadow:0 8px 20px rgba(6,199,85,.3)">
+      </div>
+      <div class="login-body">
+        <div style="font-size:19px;font-weight:800;margin-bottom:6px">เข้าสู่ระบบสารสนเทศ</div>
+        <div style="font-size:13px;color:#64748b;line-height:1.5;margin-bottom:22px">
+          ล็อกอินครั้งเดียว ใช้งานครบทั้ง 4 ฝ่ายงานของโรงเรียน
+        </div>
+        <button class="btn-line" onclick="handlePortalLogin()">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3C6.5 3 2 6.6 2 11c0 3.9 3.5 7.2 8.3 7.9.3.1.8.3.9.6.1.3.1.7 0 1l-.1.9c0 .3-.2 1 .9.5s5.8-3.4 7.9-5.9C21.3 13.6 22 12.4 22 11c0-4.4-4.5-8-10-8z" fill="currentColor"/></svg>
           เข้าสู่ระบบด้วย LINE
+        </button>
+        <div style="margin-top:14px;font-size:11.5px;color:#94a3b8">
+          ใช้บัญชี LINE ที่ลงทะเบียนกับโรงเรียนบ้านห้วยตาดเท่านั้น
         </div>
-        <div style="margin-top:18px;font-size:11px;color:#94a3b8">การเข้าสู่ระบบต้องใช้บัญชี LINE ที่ลงทะเบียนกับโรงเรียนเท่านั้น</div>
       </div>
     </div>
-    <div style="margin-top:20px;font-size:11px;color:#94a3b8">โรงเรียนบ้านห้วยตาด</div>
-    <div onclick="openAdminLogin()" style="margin-top:6px;font-size:11px;color:#cbd5e1;cursor:pointer;text-decoration:underline;text-underline-offset:2px">เข้าสู่ระบบสำหรับผู้ดูแลระบบ</div>
+    <a href="leave/index.html" style="margin-top:16px;font-size:11.5px;color:#64748b;text-decoration:underline">เข้าสู่ระบบสำหรับผู้ดูแลระบบ / ลงทะเบียนใหม่</a>
   </div>
 
-  <!-- ===== VIEW: ONBOARDING (register) ===== -->
-  <div id="view-onboarding" class="view-section" style="display:none;min-height:100vh;align-items:center;justify-content:center;padding:32px 20px">
-    <div style="width:100%;max-width:420px;background:#fff;border:1px solid #e2e8f0;border-radius:20px;box-shadow:0 20px 50px rgba(15,23,42,.08);overflow:hidden">
-      <div style="background:linear-gradient(135deg,#2563eb,#1d4ed8);padding:28px;text-align:center;color:#fff">
-        <div style="font-size:20px;font-weight:800">ลงทะเบียนใช้งาน</div>
-        <div style="font-size:12px;opacity:.85;margin-top:2px">ระบบจัดการการลา โรงเรียนบ้านห้วยตาด</div>
-      </div>
-      <form id="form-bind-user" style="padding:24px;display:flex;flex-direction:column;gap:14px">
-        <div style="display:flex;gap:12px">
-          <div style="width:132px">
-            <div class="dc-label">คำนำหน้า</div>
-            <span id="reg-prefix-mount"></span>
+  <!-- ===== VIEW 2: PORTAL (4 ฝ่าย -> โปรแกรม) ===== -->
+  <div id="view-portal" style="display:none">
+    <div class="portal-shell">
+      <header class="hero">
+        <div class="hero-content">
+          <div class="hero-top">
+            <div class="school-pill">
+              <img src="img/logo-ht.png" alt="Logo" onerror="this.style.display='none'">
+              <span>โรงเรียนบ้านห้วยตาด</span>
+            </div>
+            <button class="hero-icon-btn" onclick="handlePortalLogout()" title="ออกจากระบบ">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </button>
           </div>
-          <div style="flex:1">
-            <div class="dc-label">ชื่อ</div>
-            <input type="text" id="teacherName" required class="dc-input">
-          </div>
-          <div style="flex:1">
-            <div class="dc-label">นามสกุล</div>
-            <input type="text" id="teacherSurname" required class="dc-input">
-          </div>
-        </div>
-        <div style="display:flex;gap:12px">
-          <div style="flex:1">
-            <div class="dc-label">ตำแหน่ง</div>
-            <span id="reg-position-mount"></span>
-          </div>
-          <div style="flex:1">
-            <div class="dc-label">กลุ่มสาระ/ฝ่าย</div>
-            <span id="reg-dept-mount"></span>
+
+          <div class="profile-row">
+            <div class="avatar-ring" id="user-avatar">ค</div>
+            <div style="min-width:0">
+              <div class="profile-name" id="user-fullname">กำลังโหลด...</div>
+              <div class="profile-role" id="user-role-text">บุคลากรโรงเรียน</div>
+            </div>
           </div>
         </div>
-        <div style="display:flex;gap:12px">
-          <div style="flex:1">
-            <div class="dc-label">เบอร์โทรศัพท์</div>
-            <input type="tel" id="teacherPhone" required class="dc-input">
+      </header>
+
+      <main class="main-sheet">
+        <!-- ชั้นที่ 1: 4 ฝ่าย -->
+        <div id="dept-list-view">
+          <div class="sheet-header">
+            <div>
+              <div class="sheet-title">เลือกฝ่ายงาน</div>
+              <div class="sheet-sub">ระบบบริหารงาน 4 ฝ่าย โรงเรียนบ้านห้วยตาด</div>
+            </div>
+            <div style="font-size:11.5px;font-weight:700;color:#2563eb;background:#eff6ff;padding:5px 10px;border-radius:999px">
+              4 ฝ่ายงาน
+            </div>
           </div>
-          <div style="flex:1">
-            <div class="dc-label">อีเมล (ถ้ามี)</div>
-            <input type="email" id="teacherEmail" class="dc-input">
+
+          <div class="dept-grid">
+            <div class="dept-card ready" onclick="openDepartment('personnel')">
+              <span class="card-badge badge-ready" id="leave-badge">พร้อมใช้</span>
+              <div class="dept-icon" style="background:linear-gradient(145deg,#eff6ff,#dbeafe)">
+                <svg width="38" height="38" viewBox="0 0 48 48" fill="none">
+                  <circle cx="19" cy="17" r="7" fill="#3b82f6"/>
+                  <path d="M6 38c0-6.627 5.82-11 13-11s13 4.373 13 11v2H6v-2z" fill="#2563eb"/>
+                  <circle cx="33" cy="19" r="5.5" fill="#93c5fd"/>
+                  <path d="M29 29.5c5.8.6 11 4.2 11 9.5v1h-7.5c0-4.2-1.4-7.6-3.5-10.5z" fill="#60a5fa"/>
+                  <rect x="29" y="29" width="13" height="12" rx="3" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+                  <path d="M33 35l2 2 4-4" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="dept-name">ฝ่ายบริหารงานบุคคล</div>
+              <div class="dept-hint">1 โปรแกรม</div>
+            </div>
+
+            <div class="dept-card ready" onclick="openDepartment('academic')">
+              <span class="card-badge badge-ready" id="teaching-badge">พร้อมใช้</span>
+              <div class="dept-icon" style="background:linear-gradient(145deg,#ecfdf5,#d1fae5)">
+                <svg width="38" height="38" viewBox="0 0 48 48" fill="none">
+                  <path d="M8 12c0-2.2 1.8-4 4-4h10c1.1 0 2 .9 2 2v28c-2-1.5-4.5-2-7-2H10c-1.1 0-2-.9-2-2V12z" fill="#10b981"/>
+                  <path d="M40 12c0-2.2-1.8-4-4-4H26c-1.1 0-2 .9-2 2v28c2-1.5 4.5-2 7-2h7c1.1 0 2-.9 2-2V12z" fill="#34d399"/>
+                  <circle cx="34" cy="33" r="9" fill="#ffffff" stroke="#059669" stroke-width="2"/>
+                  <path d="M30.5 33l2.2 2.2 4.8-4.7" stroke="#059669" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="dept-name">ฝ่ายบริหารวิชาการ</div>
+              <div class="dept-hint">1 โปรแกรม</div>
+            </div>
+
+            <div class="dept-card soon" onclick="openDepartment('budget')">
+              <span class="card-badge badge-soon">เร็วๆ นี้</span>
+              <div class="dept-icon" style="background:linear-gradient(145deg,#fffbeb,#fef3c7)">
+                <svg width="38" height="38" viewBox="0 0 48 48" fill="none">
+                  <rect x="7" y="14" width="34" height="24" rx="5" fill="#f59e0b"/>
+                  <path d="M11 10h22c2.2 0 4 1.8 4 4H7c0-2.2 1.8-4 4-4z" fill="#fbbf24"/>
+                  <rect x="28" y="22" width="14" height="8" rx="4" fill="#fef3c7" stroke="#d97706" stroke-width="1.8"/>
+                  <circle cx="33" cy="26" r="2" fill="#d97706"/>
+                </svg>
+              </div>
+              <div class="dept-name">ฝ่ายบริหารงบประมาณ</div>
+              <div class="dept-hint">เตรียมเปิดใช้งาน</div>
+            </div>
+
+            <div class="dept-card soon" onclick="openDepartment('general')">
+              <span class="card-badge badge-soon">เร็วๆ นี้</span>
+              <div class="dept-icon" style="background:linear-gradient(145deg,#faf5ff,#f3e8ff)">
+                <svg width="38" height="38" viewBox="0 0 48 48" fill="none">
+                  <path d="M24 7v6" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round"/>
+                  <path d="M24 7h6l-1.5 3L30 13h-6V7z" fill="#ef4444"/>
+                  <path d="M9 22L24 12l15 10v17a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2V22z" fill="#8b5cf6"/>
+                  <path d="M6 23L24 11l18 12" stroke="#6d28d9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                  <rect x="20" y="29" width="8" height="12" rx="2" fill="#f5f3ff"/>
+                </svg>
+              </div>
+              <div class="dept-name">ฝ่ายบริหารทั่วไป</div>
+              <div class="dept-hint">เตรียมเปิดใช้งาน</div>
+            </div>
           </div>
         </div>
-        <button type="submit" class="dc-btn-primary" style="margin-top:6px">ยืนยันการลงทะเบียน</button>
-        <div style="font-size:11px;color:#94a3b8;text-align:center">หลังลงทะเบียน ต้องรอผู้ดูแลระบบอนุมัติก่อนเข้าใช้งาน</div>
-      </form>
+
+        <!-- ชั้นที่ 2: โปรแกรมในฝ่ายที่เลือก -->
+        <div id="dept-apps-view" style="display:none">
+          <div class="sheet-header">
+            <div style="display:flex;align-items:center;gap:10px">
+              <button onclick="closeDepartment()" style="border:1px solid #e2e8f0;background:#f8fafc;color:#0f172a;border-radius:10px;padding:7px 11px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                กลับ
+              </button>
+              <div>
+                <div class="sheet-title" id="dept-view-title">ฝ่ายงาน</div>
+                <div class="sheet-sub" id="dept-view-sub">เลือกโปรแกรมที่ต้องการใช้งาน</div>
+              </div>
+            </div>
+          </div>
+          <div id="dept-apps-grid" class="dept-grid"></div>
+        </div>
+
+        <!-- เฉพาะ Admin -->
+        <a id="admin-section" href="leave/index.html" class="admin-strip" style="display:none">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;flex:none">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </div>
+            <div>
+              <div style="font-size:14px;font-weight:700">ศูนย์ผู้ดูแลระบบกลาง (Admin)</div>
+              <div style="font-size:11.5px;color:#94a3b8">จัดการบุคลากร ตั้งค่าโมดูล และประวัติการใช้งาน</div>
+            </div>
+          </div>
+          <span style="font-size:13px;font-weight:700;color:#38bdf8">&rarr;</span>
+        </a>
+      </main>
     </div>
   </div>
 
-  <!-- ===== ROLE PORTAL ROOTS (rendered by app.js) ===== -->
-  <div id="view-teacher"  class="view-section" style="display:none"></div>
-  <div id="view-hr"       class="view-section" style="display:none"></div>
-  <div id="view-director" class="view-section" style="display:none"></div>
-  <div id="view-admin"    class="view-section" style="display:none"></div>
+  <div id="toast" class="toast"></div>
 
-  <!-- Modal + toast mount point -->
-  <div id="modal-root"></div>
-  <div id="toast-root"></div>
-
-  <script src="core.js?v=36"></script>
-  <script src="print.js?v=36"></script>
-  <script src="nav.js?v=36"></script>
-  <script src="modals.js?v=36"></script>
-  <script src="teacher.js?v=36"></script>
-  <script src="director.js?v=36"></script>
-  <script src="hr.js?v=36"></script>
-  <script src="admin.js?v=36"></script>
-  <script src="auth.js?v=36"></script>
+  <script src="portal.js"></script>
 </body>
 </html>
