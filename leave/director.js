@@ -107,13 +107,16 @@ function renderDirector() {
       <div style="font-size:12px;opacity:.85;margin-top:4px">ผู้อำนวยการ โรงเรียนบ้านห้วยตาด</div>
     </div>`;
 
+  const portalHomeBtn = `<a href="../index.html" class="ht-home-btn" title="กลับหน้าหลักโรงเรียน (4 ฝ่าย)" style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.95);display:flex;align-items:center;justify-content:center;color:#1d4ed8;box-shadow:0 2px 8px rgba(0,0,0,.12);text-decoration:none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${HOME_PATH}</svg></a>`;
+
   const heroRight = _dirTab === 0 ? `
     <div style="display:flex;gap:8px">
+      ${portalHomeBtn}
       ${bellBtn}
       <div onclick="setDirTab(2)" style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${MENU_PATH}</svg>
       </div>
-    </div>` : bellBtn;
+    </div>` : `<div style="display:flex;gap:8px">${portalHomeBtn}${bellBtn}</div>`;
 
   const hero = `
     <div style="background:url('../img/BG_User.png') center/cover no-repeat;padding:18px 16px 54px;position:relative;overflow:hidden;color:#fff">

@@ -534,6 +534,7 @@ function renderAdmin() {
             </div>
           </div>
           <div class="adm-top-actions">
+            <a href="../index.html" class="adm-btn-ghost ht-home-btn">${svg('home', 14)} หน้าหลักโรงเรียน</a>
             ${u.id === 'ADMIN' ? '' : `<button onclick="openLeaveForm()" class="adm-btn-ghost">${svg('plus', 14)} ยื่นใบลาของฉัน</button>`}
             <button onclick="logout()" class="adm-btn-ghost" style="border-color:rgba(248,113,113,0.4);color:#fecaca">${svg('logout', 14)} ออกจากระบบ</button>
           </div>
