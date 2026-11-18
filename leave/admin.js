@@ -126,8 +126,10 @@ function renderAdmin() {
       .adm-top-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
       .adm-btn-ghost {
         background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.22);
-        color: #fff; padding: 8px 13px; border-radius: 10px; font-size: 12.5px; font-weight: 700;
+        color: #fff; padding: 8px 14px; border-radius: 10px; font-size: 13px; font-weight: 700;
+        font-family: inherit; line-height: 1.2; white-space: nowrap;
         cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+        transition: background .15s ease;
       }
       .adm-btn-ghost:hover { background: rgba(255,255,255,0.22); }
       .adm-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
@@ -534,9 +536,9 @@ function renderAdmin() {
             </div>
           </div>
           <div class="adm-top-actions">
-            <a href="../index.html" class="adm-btn-ghost ht-home-btn">${svg('home', 14)} หน้าหลักโรงเรียน</a>
-            ${u.id === 'ADMIN' ? '' : `<button onclick="openLeaveForm()" class="adm-btn-ghost">${svg('plus', 14)} ยื่นใบลาของฉัน</button>`}
-            <button onclick="logout()" class="adm-btn-ghost" style="border-color:rgba(248,113,113,0.4);color:#fecaca">${svg('logout', 14)} ออกจากระบบ</button>
+            <a href="../index.html" class="adm-btn-ghost ht-home-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> หน้าหลักโรงเรียน</a>
+            ${u.id === 'ADMIN' ? '' : `<button onclick="backFromAdmin()" class="adm-btn-ghost">${svg('user', 14)} หน้าระบบลาของฉัน</button>`}
+            <button onclick="logout()" class="adm-btn-ghost" style="border-color:rgba(248,113,113,0.45);background:rgba(239,68,68,0.16);color:#fecaca">${svg('logout', 14)} ออกจากระบบ</button>
           </div>
         </header>
 

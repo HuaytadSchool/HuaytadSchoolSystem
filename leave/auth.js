@@ -210,8 +210,20 @@ async function routeByRole() {
 
 async function reloadPortal() {
   const role = currentUser.role || 'Teacher';
+  const wantAdmin = new URLSearchParams(location.search).get('admin') === '1';
   if (role === 'HR') { showView('hr'); await loadHr(); }
   else if (role === 'Director') { showView('director'); await loadDirector(); }
-  else if (role === 'Admin') { showView('admin'); await loadAdmin(); }
+  else if (role === 'Admin' && (currentUser.id === 'ADMIN' || wantAdmin)) { showView('admin'); await loadAdmin(); }
   else { showView('teacher'); await loadTeacher(); }
 }
+
+window.openAdminConsole = async () => {
+  if (!currentUser || currentUser.role !== 'Admin') return;
+  showLoader(true);
+  try { showView('admin'); await loadAdmin(); } finally { showLoader(false); }
+};
+
+window.backFromAdmin = async () => {
+  showLoader(true);
+  try { showView('teacher'); await loadTeacher(); } finally { showLoader(false); }
+};

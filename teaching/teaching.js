@@ -6,7 +6,7 @@
  */
 
 const CONFIG = {
-  GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbyuWqPsDPNaql9BNzhkeR7AXQYEPnF2w1zVvS3PheN3mI5uq1-P-iJQJldk5csLjMrWvg/exec",
+  GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbx5ogiJsGcGKpcFrNrbwq2r_gp58ljcffJaO4KLN2nzmoWoySKm4FRCFj0Kda7jjCe1mQ/exec",
   LIFF_ID: "2010662195-iJjI0NIA",
   MAX_FILE_SIZE_MB: 10
 };
@@ -45,11 +45,203 @@ function svg(name, size = 16, width = 2) {
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;display:inline-block;flex:none">${ICONS[name] || ''}</svg>`;
 }
 
+function showToast(title, icon = 'success') {
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon: icon,
+    title: title,
+    showConfirmButton: false,
+    timer: 2200,
+    timerProgressBar: true
+  });
+}
+
+const THAI_MONTHS_FULL = [
+  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+];
+
+function getTodayBangkokISO() {
+  return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+}
+
+function formatThaiPickerDisplay(iso) {
+  const m = String(iso || '').slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return 'เลือกวันที่...';
+  const y = parseInt(m[1], 10);
+  const mon = parseInt(m[2], 10) - 1;
+  const d = parseInt(m[3], 10);
+  return `${d} ${THAI_MONTHS_FULL[mon] || ''} ${y + 543}`;
+}
+
+function thaiDatePicker(id, value = '') {
+  const iso = value ? String(value).slice(0, 10) : '';
+  const hasVal = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+  const label = hasVal ? formatThaiPickerDisplay(iso) : 'เลือกวันที่...';
+  return `
+    <div class="thai-cal-wrap">
+      <button type="button" id="${id}-display" class="thai-cal-trigger" onclick="openThaiCalendar('${id}', this)">
+        <span id="${id}-label" style="color:${hasVal ? '#0f172a' : '#94a3b8'};">${esc(label)}</span>
+        <span style="color:#64748b; display:inline-flex;">${svg('calendar', 16)}</span>
+      </button>
+      <input type="hidden" id="${id}" value="${esc(iso)}"/>
+    </div>
+  `;
+}
+
+let _thaiCalState = { targetId: null, viewYear: new Date().getFullYear(), viewMonth: new Date().getMonth() };
+
+function closeThaiCalendar() {
+  const pop = document.getElementById('thai-cal-popup');
+  if (pop) pop.remove();
+  _thaiCalState.targetId = null;
+}
+
+function openThaiCalendar(targetId, triggerEl) {
+  const existing = document.getElementById('thai-cal-popup');
+  if (existing && _thaiCalState.targetId === targetId) {
+    closeThaiCalendar();
+    return;
+  }
+  closeThaiCalendar();
+
+  const hid = document.getElementById(targetId);
+  const iso = hid ? hid.value : '';
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const todayIso = getTodayBangkokISO();
+  const tm = todayIso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  _thaiCalState.targetId = targetId;
+  _thaiCalState.viewYear = m ? parseInt(m[1], 10) : parseInt(tm[1], 10);
+  _thaiCalState.viewMonth = m ? parseInt(m[2], 10) - 1 : parseInt(tm[2], 10) - 1;
+
+  const pop = document.createElement('div');
+  pop.id = 'thai-cal-popup';
+  pop.className = 'thai-cal-popup no-print';
+  pop.addEventListener('click', (e) => e.stopPropagation());
+  document.body.appendChild(pop);
+
+  renderThaiCalendarPopup();
+
+  // จัดตำแหน่งไม่ให้ล้นขอบจอหรือโดน Modal ตัด
+  const rect = triggerEl.getBoundingClientRect();
+  const popRect = pop.getBoundingClientRect();
+  let top = rect.bottom + 6;
+  if (top + popRect.height > window.innerHeight - 8 && rect.top - popRect.height - 6 > 8) {
+    top = rect.top - popRect.height - 6;
+  }
+  let left = rect.left;
+  if (left + popRect.width > window.innerWidth - 8) {
+    left = Math.max(8, window.innerWidth - popRect.width - 8);
+  }
+  pop.style.top = `${top}px`;
+  pop.style.left = `${left}px`;
+}
+
+function renderThaiCalendarPopup() {
+  const pop = document.getElementById('thai-cal-popup');
+  if (!pop || !_thaiCalState.targetId) return;
+
+  const hid = document.getElementById(_thaiCalState.targetId);
+  const selectedIso = hid ? hid.value : '';
+  const todayIso = getTodayBangkokISO();
+  const { viewYear: y, viewMonth: m } = _thaiCalState;
+
+  const nowYr = new Date().getFullYear();
+  const minYr = Math.min(nowYr - 3, y);
+  const maxYr = Math.max(nowYr + 3, y);
+  const yearOpts = [];
+  for (let yr = minYr; yr <= maxYr; yr++) {
+    yearOpts.push(`<option value="${yr}" ${yr === y ? 'selected' : ''}>${yr + 543}</option>`);
+  }
+  const monthOpts = THAI_MONTHS_FULL.map((name, idx) =>
+    `<option value="${idx}" ${idx === m ? 'selected' : ''}>${name}</option>`
+  ).join('');
+
+  const firstWeekday = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  let cells = '';
+  for (let i = 0; i < firstWeekday; i++) {
+    cells += '<div></div>';
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const iso = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const wd = (firstWeekday + d - 1) % 7;
+    const cls = [
+      'thai-cal-day',
+      (wd === 0 || wd === 6) ? 'is-weekend' : '',
+      iso === todayIso ? 'is-today' : '',
+      iso === selectedIso ? 'is-selected' : ''
+    ].filter(Boolean).join(' ');
+    cells += `<button type="button" class="${cls}" onclick="selectThaiCalendarDate('${iso}')">${d}</button>`;
+  }
+
+  pop.innerHTML = `
+    <div class="thai-cal-header">
+      <button type="button" class="thai-cal-nav-btn" onclick="stepThaiCalendarMonth(-1)" title="เดือนก่อนหน้า">&#8249;</button>
+      <div class="thai-cal-selects">
+        <select onchange="jumpThaiCalendar(this.value, null)" style="flex:1.4;">${monthOpts}</select>
+        <select onchange="jumpThaiCalendar(null, this.value)" style="flex:1;">${yearOpts.join('')}</select>
+      </div>
+      <button type="button" class="thai-cal-nav-btn" onclick="stepThaiCalendarMonth(1)" title="เดือนถัดไป">&#8250;</button>
+    </div>
+    <div class="thai-cal-weekdays">
+      <span>อา</span><span>จ</span><span>อ</span><span>พ</span><span>พฤ</span><span>ศ</span><span>ส</span>
+    </div>
+    <div class="thai-cal-days">${cells}</div>
+    <div class="thai-cal-footer">
+      <button type="button" class="thai-cal-foot-btn primary" onclick="selectThaiCalendarDate('${todayIso}')">วันนี้</button>
+      <button type="button" class="thai-cal-foot-btn" onclick="closeThaiCalendar()">ปิด</button>
+    </div>
+  `;
+}
+
+function stepThaiCalendarMonth(delta) {
+  let m = _thaiCalState.viewMonth + delta;
+  let y = _thaiCalState.viewYear;
+  if (m < 0) { m = 11; y -= 1; }
+  else if (m > 11) { m = 0; y += 1; }
+  _thaiCalState.viewMonth = m;
+  _thaiCalState.viewYear = y;
+  renderThaiCalendarPopup();
+}
+
+function jumpThaiCalendar(monthVal, yearVal) {
+  if (monthVal !== null) _thaiCalState.viewMonth = parseInt(monthVal, 10);
+  if (yearVal !== null) _thaiCalState.viewYear = parseInt(yearVal, 10);
+  renderThaiCalendarPopup();
+}
+
+function selectThaiCalendarDate(iso) {
+  const id = _thaiCalState.targetId;
+  if (!id) return;
+  const hid = document.getElementById(id);
+  const lbl = document.getElementById(id + '-label');
+  if (hid) hid.value = iso;
+  if (lbl) {
+    lbl.textContent = formatThaiPickerDisplay(iso);
+    lbl.style.color = '#0f172a';
+  }
+  closeThaiCalendar();
+}
+
+document.addEventListener('click', (e) => {
+  const pop = document.getElementById('thai-cal-popup');
+  if (!pop) return;
+  if (e.target.closest('.thai-cal-wrap') || e.target.closest('#thai-cal-popup')) return;
+  closeThaiCalendar();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeThaiCalendar();
+});
+
 // Global App State
 let state = {
   currentLineProfile: null,
   teacher: null,
   isAcademic: false,
+  canManage: false,
   activeTerm: null,
   loads: [],
   rounds: [],
@@ -63,6 +255,7 @@ let state = {
   reportFilterTerm: '',
   reportFilterRound: '',
   reportFilterGroup: '',
+  reportScope: 'all',
   reportSubView: 'plans',
   complianceFilter: 'all',
   complianceSearch: '',
@@ -134,7 +327,9 @@ async function initLiffAndApp() {
     const bootstrap = await api.getTeachingBootstrap(lineUserId);
 
     state.teacher = bootstrap.teacher;
+    state.directorName = bootstrap.directorName || '';
     state.isAcademic = Boolean(bootstrap.isAcademic || ['Academic', 'Admin', 'Director'].includes(state.teacher.role));
+    state.canManage = Boolean(bootstrap.canManage !== undefined ? bootstrap.canManage : (state.isAcademic && state.teacher.role !== 'Director'));
     if (state.isAcademic) state.reportSubView = 'compliance';
     state.activeTerm = bootstrap.activeTerm;
     state.loads = bootstrap.loads || [];
@@ -224,10 +419,10 @@ function renderTabs() {
     }
   }
 
-  // แท็บจัดการวิชาการ (สำหรับผู้รับผิดชอบฝ่ายวิชาการ / Admin / Director)
+  // แท็บจัดการวิชาการ (สำหรับผู้รับผิดชอบฝ่ายวิชาการ และ Admin เท่านั้น — ไม่รวม Director)
   const manageTab = document.getElementById('tab-manage-btn');
   if (manageTab) {
-    manageTab.style.display = state.isAcademic ? 'flex' : 'none';
+    manageTab.style.display = state.canManage ? 'flex' : 'none';
   }
 }
 
@@ -268,14 +463,60 @@ function renderLoads(container) {
 
   let html = '';
   state.loads.forEach(load => {
-    const latestPlan = (load.plans && load.plans.length > 0) ? load.plans[load.plans.length - 1] : null;
-    const status = latestPlan ? latestPlan.status : 'Not_Submitted';
-    const statusText = getStatusBadge(status);
-    const isLocked = ['Pending_Head', 'Pending_Academic', 'Approved'].includes(status);
-    
-    // ตรวจสอบวันกำหนดส่ง
-    const dueDate = latestPlan && latestPlan.due_date ? latestPlan.due_date : (state.rounds[0] ? state.rounds[0].due_date : '');
-    const isOverdue = dueDate && new Date(dueDate) < new Date() && ['Not_Submitted', 'Draft', 'Revise'].includes(status);
+    const plans = load.plans || [];
+
+    const unitsHtml = plans.length === 0
+      ? `<div style="font-size:12.5px; color:#64748b; background:#f8fafc; padding:12px; border-radius:8px; border:1px dashed #cbd5e1; margin:10px 0; text-align:center;">
+          ยังไม่มีหน่วยการเรียนรู้ที่ส่งในรายวิชานี้ — กดปุ่ม <strong>"+ เพิ่มหน่วยการเรียนรู้"</strong> ด้านล่าง
+        </div>`
+      : `<div style="display:flex; flex-direction:column; gap:8px; margin:10px 0;">
+          ${plans.map(p => {
+            const st = p.status || 'Not_Submitted';
+            const badge = getStatusBadge(st);
+            const isLocked = ['Pending_Head', 'Pending_Academic', 'Approved'].includes(st);
+            const isOverdue = p.due_date && new Date(p.due_date) < new Date() && ['Not_Submitted', 'Draft', 'Revise'].includes(st);
+            return `
+              <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap;">
+                  <div style="min-width:0;">
+                    <div style="font-size:13.5px; font-weight:700; color:#0f172a;">${esc(p.unit_title || 'ไม่ระบุชื่อหน่วย')} (${p.teaching_hours || 0} ชม.)</div>
+                    <div style="font-size:11.5px; color:#64748b; margin-top:2px;">
+                      ${esc(p.round_title || 'รอบส่งแผน')} · ฉบับที่ ${p.version || 1} ${p.due_date ? '· กำหนดส่ง: ' + formatDate(p.due_date) : ''}
+                    </div>
+                  </div>
+                  <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+                    ${badge}
+                    ${isOverdue ? `<span class="status-badge status-revise" style="font-size:10.5px;">${svg('alert', 10)} เกินกำหนด</span>` : ''}
+                  </div>
+                </div>
+                <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:8px;">
+                  <button class="btn-secondary" style="font-size:12px; padding:5px 10px;" onclick="openHistoryModal('${p.plan_id}')">
+                    ${svg('clock', 13)} <span>ประวัติ</span>
+                  </button>
+                  ${p.drive_pdf_url ? `
+                    <a href="${p.drive_pdf_url}" target="_blank" class="btn-secondary" style="font-size:12px; padding:5px 10px; text-decoration:none;">
+                      ${svg('fileText', 13)} <span>ดู PDF</span>
+                    </a>
+                  ` : ''}
+                  ${isLocked ? `
+                    <span style="font-size:11.5px; color:#64748b; display:inline-flex; align-items:center; gap:4px; padding:4px 8px; background:#e2e8f0; border-radius:6px;">
+                      ${svg('lock', 11)} ล็อกรอการตรวจ
+                    </span>
+                  ` : `
+                    <button class="btn-primary" style="font-size:12px; padding:5px 10px;" onclick="openSubmitModal('${load.load_id}', '${p.plan_id}')">
+                      ${svg('edit', 13)} <span>${st === 'Revise' ? 'ส่งฉบับแก้ไข' : 'แก้ไขร่าง'}</span>
+                    </button>
+                  `}
+                  ${st === 'Approved' ? `
+                    <button class="btn-primary" onclick="switchTab('reflections')" style="font-size:12px; padding:5px 10px; background:#16a34a;">
+                      ${svg('plus', 13)} <span>บันทึกหลังสอน</span>
+                    </button>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>`;
 
     html += `
       <div class="load-card">
@@ -285,48 +526,21 @@ function renderLoads(container) {
             <div class="subject-name">${esc(load.subject_name)}</div>
             <div class="classroom-tag">ชั้น ${esc(load.classroom)} ${load.level ? '(' + esc(load.level) + ')' : ''}</div>
           </div>
-          <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
-            ${statusText}
-            ${isOverdue ? `<span class="status-badge status-revise" style="font-size:11px;">${svg('alert', 11)} ค้างส่งเกินกำหนด</span>` : ''}
-          </div>
+          <span style="font-size:12px; font-weight:700; color:#1e3a8a; background:#eff6ff; padding:4px 10px; border-radius:999px;">
+            ${plans.length} หน่วย
+          </span>
         </div>
 
-        ${latestPlan ? `
-          <div style="font-size:13px; color:#475569; margin: 8px 0; background:#f8fafc; padding:8px 12px; border-radius:8px; border:1px solid #e2e8f0;">
-            <div><strong>หน่วย/เรื่อง:</strong> ${esc(latestPlan.unit_title || '-')} (${latestPlan.teaching_hours || 0} ชม.)</div>
-            <div><strong>ฉบับที่:</strong> ${latestPlan.version || 1} ${latestPlan.due_date ? '• กำหนดส่ง: ' + formatDate(latestPlan.due_date) : ''}</div>
-          </div>
-        ` : ''}
+        ${unitsHtml}
 
         <div class="load-info-row">
           <div class="reviewer-info">
             <span>ผู้ตรวจ: <strong>${esc(load.reviewer_name)}</strong></span>
           </div>
-          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            ${latestPlan ? `
-              <button class="btn-secondary" onclick="openHistoryModal('${latestPlan.plan_id}')">
-                ${svg('clock', 14)} <span>ประวัติ</span>
-              </button>
-            ` : ''}
-            ${latestPlan && latestPlan.drive_pdf_url ? `
-              <a href="${latestPlan.drive_pdf_url}" target="_blank" class="btn-secondary" style="text-decoration:none;">
-                ${svg('fileText', 14)} <span>ดู PDF</span>
-              </a>
-            ` : ''}
-            ${isLocked ? `
-              <span style="font-size:12px; color:#64748b; display:inline-flex; align-items:center; gap:4px; padding:4px 8px; background:#f1f5f9; border-radius:6px;">
-                ${svg('lock', 12)} ล็อกรอการตรวจ
-              </span>
-            ` : `
-              <button class="btn-primary" onclick="openSubmitModal('${load.load_id}')">
-                ${latestPlan ? `${svg('edit', 14)} <span>${status === 'Revise' ? 'ส่งฉบับแก้ไข' : 'แก้ไขร่าง'}</span>` : `${svg('send', 14)} <span>ส่งแผนการสอน</span>`}
-              </button>
-            `}
-            ${status === 'Approved' ? `
-              <button class="btn-primary" onclick="switchTab('reflections')" style="background:#16a34a;">
-                ${svg('plus', 14)} <span>บันทึกหลังสอน</span>
-              </button>
-            ` : ''}
+          <div>
+            <button class="btn-primary" onclick="openSubmitModal('${load.load_id}')">
+              ${svg('plus', 14)} <span>เพิ่มหน่วยการเรียนรู้</span>
+            </button>
           </div>
         </div>
       </div>
@@ -421,7 +635,7 @@ async function renderReviews(container) {
       const isHeadReview = item.review_role === 'Head';
       const roleBadge = isHeadReview 
         ? `<span class="status-badge status-pending_head">${svg('clock', 12)} รอหัวหน้ากลุ่มสาระตรวจ</span>`
-        : `<span class="status-badge status-pending_academic">${svg('eye', 12)} รอฝ่ายวิชาการรับรอง</span>`;
+        : `<span class="status-badge status-pending_academic">${svg('eye', 12)} รอผู้อำนวยการรับรอง</span>`;
 
       html += `
         <div class="load-card">
@@ -480,7 +694,7 @@ function openReviewModal(planId) {
   if (!item) return;
 
   const isHead = item.review_role === 'Head';
-  const passLabel = isHead ? 'ผ่านการตรวจ (ส่งต่อให้ฝ่ายวิชาการรับรอง)' : 'รับรองแผนสมบูรณ์ (อนุมัติให้เริ่มบันทึกหลังสอน)';
+  const passLabel = isHead ? 'ผ่านการตรวจ (ส่งต่อให้ผู้อำนวยการรับรอง)' : 'รับรองแผนสมบูรณ์ (ผู้อำนวยการอนุมัติ)';
 
   const content = `
     <div class="modal-header">
@@ -494,10 +708,13 @@ function openReviewModal(planId) {
     </div>
 
     ${item.drive_pdf_url ? `
-      <div style="margin-bottom:16px;">
-        <a href="${item.drive_pdf_url}" target="_blank" class="btn-secondary" style="width:100%; justify-content:center; padding:10px; text-decoration:none; display:flex;">
-          ${svg('fileText', 16)} <span>คลิกเพื่อเปิดอ่านไฟล์ PDF ใน Google Drive</span>
+      <div style="margin-bottom:16px; display:flex; gap:8px; flex-wrap:wrap;">
+        <a href="${item.drive_pdf_url}" target="_blank" class="btn-secondary" style="flex:1; min-width:150px; justify-content:center; padding:10px; text-decoration:none; display:flex;">
+          ${svg('fileText', 16)} <span>เปิดดู PDF ฉบับที่ ${item.version || 1}</span>
         </a>
+        <button type="button" class="btn-secondary" style="flex:1; min-width:150px; justify-content:center; padding:10px;" onclick="openHistoryModal('${item.plan_id}')">
+          ${svg('clock', 16)} <span>ดูประวัติ & เทียบไฟล์เก่า</span>
+        </button>
       </div>
     ` : ''}
 
@@ -677,10 +894,13 @@ async function renderManage(container) {
             <div class="reviewer-info">
               ผู้ตรวจ: <strong>${esc(l.reviewer_name)}</strong>
             </div>
-            <div>
+            <div style="display:flex; gap:6px; align-items:center;">
               <button class="btn-secondary" style="font-size:12px; padding:6px 12px;" onclick="openChangeReviewerModal('${l.load_id}', '${esc(l.subject_code)}', '${esc(l.classroom)}', '${esc(l.reviewer_id)}')">
                 ${svg('edit', 12)} <span>เปลี่ยนผู้ตรวจ</span>
               </button>
+              ${Number(l.plan_count || 0) === 0
+                ? `<button class="btn-secondary" style="font-size:12px; padding:6px 10px; color:#dc2626; border-color:#fecaca; background:#fef2f2;" onclick="handleDeleteLoad('${l.load_id}', '${esc(l.subject_code)} ${esc(l.subject_name)}', '${esc(l.classroom)}')">ลบ</button>`
+                : `<button class="btn-secondary" disabled title="มีการส่งแผนแล้ว ${Number(l.plan_count || 0)} แผน ไม่สามารถลบได้" style="font-size:12px; padding:6px 10px; opacity:0.45; cursor:not-allowed;">ลบ</button>`}
             </div>
           </div>
         </div>
@@ -711,21 +931,27 @@ async function renderManage(container) {
     } else {
       roundsHtml = rounds.map(r => {
         const isOpen = r.is_open === true || String(r.is_open).toUpperCase() === 'TRUE';
+        const planCount = Number(r.plan_count || 0);
+        const canDelete = planCount === 0;
         return `
           <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
             <div>
               <div style="font-weight:700; font-size:14px; color:#0f172a;">${esc(r.title)}</div>
               <div style="font-size:12px; color:#64748b; margin-top:2px;">
-                เปิดรับ: ${formatDate(r.start_date)} • กำหนดส่ง: ${formatDate(r.due_date)}
+                เปิดรับ: ${formatDate(r.start_date)} • กำหนดส่ง: ${formatDate(r.due_date)} • ส่งแล้ว ${planCount} แผน
               </div>
             </div>
-            <div style="display:flex; align-items:center; gap:10px;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
               <span class="status-badge ${isOpen ? 'status-approved' : 'status-draft'}">
                 ${isOpen ? `${svg('check', 11)} กำลังเปิดรับ` : `${svg('x', 11)} ปิดรับแล้ว`}
               </span>
               <button class="btn-secondary" style="font-size:12px; padding:6px 10px;" onclick="handleToggleRound('${r.round_id}', ${!isOpen})">
                 ${isOpen ? 'ปิดรอบ' : 'เปิดรับ'}
               </button>
+              ${canDelete
+                ? `<button class="btn-secondary" style="font-size:12px; padding:6px 10px; color:#dc2626; border-color:#fecaca; background:#fef2f2;" onclick="handleDeleteRound('${r.round_id}', '${esc(r.title)}')">ลบ</button>`
+                : `<button class="btn-secondary" disabled title="มีครูส่งแผนแล้ว ${planCount} แผน ไม่สามารถลบได้" style="font-size:12px; padding:6px 10px; opacity:0.45; cursor:not-allowed;">ลบ</button>`
+              }
             </div>
           </div>
         `;
@@ -876,7 +1102,40 @@ async function renderManage(container) {
       `;
     }).join('');
 
+    const termsList = (data.terms && data.terms.length) ? data.terms : (data.activeTerm ? [data.activeTerm] : []);
+    const activeTermId = data.activeTerm ? String(data.activeTerm.term_id) : '';
+    const termPills = termsList.map(t => {
+      const isCur = String(t.term_id) === activeTermId || t.is_active === true || String(t.is_active).toUpperCase() === 'TRUE';
+      const label = t.name || `ภาคเรียนที่ ${t.term}/${t.year}`;
+      return `
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px; border:1px solid ${isCur ? '#2563eb' : '#cbd5e1'}; background:${isCur ? '#eff6ff' : '#ffffff'}; border-radius:10px;">
+          <div>
+            <div style="font-weight:700; font-size:13.5px; color:#0f172a;">${esc(label)}</div>
+            <div style="font-size:11.5px; color:#64748b;">รหัส: ${esc(t.term_id)}</div>
+          </div>
+          ${isCur
+            ? '<span class="status-badge status-approved">ภาคเรียนปัจจุบัน</span>'
+            : `<button type="button" class="btn-secondary" style="padding:5px 10px; font-size:12px;" onclick="handleSetActiveTerm('${esc(t.term_id)}', '${esc(label)}')">ตั้งเป็นปัจจุบัน</button>`}
+        </div>
+      `;
+    }).join('');
+
     html += `
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; padding:20px; box-shadow:var(--shadow-sm); margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
+          <div>
+            <h3 style="font-size:15px; font-weight:800; color:#0f172a; margin-bottom:4px;">จัดการภาคเรียน / ปีการศึกษา</h3>
+            <p style="font-size:12.5px; color:#64748b;">เพิ่มภาคเรียนใหม่หรือสลับภาคเรียนปัจจุบันของระบบส่งแผน (คัดลอกภาระสอนจากเทอมเดิมได้)</p>
+          </div>
+          <button type="button" class="btn-primary" style="padding:7px 12px; font-size:12.5px;" onclick="openCreateTermModal()">
+            ${svg('plus', 14)} <span>เพิ่มภาคเรียนใหม่</span>
+          </button>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:10px;">
+          ${termPills || '<div class="text-muted" style="font-size:13px;">ยังไม่มีข้อมูลภาคเรียน</div>'}
+        </div>
+      </div>
+
       <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; padding:20px; box-shadow:var(--shadow-sm);">
         <div style="margin-bottom:18px;">
           <h3 style="font-size:15px; font-weight:800; color:#0f172a; margin-bottom:4px;">ผู้รับผิดชอบฝ่ายวิชาการ (ระบบส่งแผน)</h3>
@@ -935,11 +1194,118 @@ async function handleSaveAcademicStaff() {
       state.manageData.reviewSteps = res.reviewSteps || reviewSteps;
     }
     showLoader(false);
-    Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', text: 'อัปเดตสิทธิ์ฝ่ายวิชาการและขั้นตอนการตรวจแผนแล้ว', timer: 1600, showConfirmButton: false });
+    showToast('บันทึกการตั้งค่าฝ่ายวิชาการแล้ว');
   } catch (err) {
     showLoader(false);
     Swal.fire({ icon: 'error', title: 'ไม่สามารถบันทึกได้', text: err.message });
   }
+}
+
+function openCreateTermModal() {
+  const curTerm = state.activeTerm || {};
+  const curYear = parseInt(curTerm.year, 10) || (new Date().getFullYear() + 543);
+  const nextTerm = String(curTerm.term) === '1' ? '2' : '1';
+  const nextYear = String(curTerm.term) === '1' ? curYear : curYear + 1;
+
+  const content = `
+    <div class="modal-header">
+      <div class="modal-title">เพิ่มภาคเรียน / ปีการศึกษาใหม่</div>
+      <button class="modal-close-btn" onclick="closeModal()">${svg('x', 18)}</button>
+    </div>
+    <form id="create-term-form">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div class="form-group">
+          <label class="form-label">ภาคเรียนที่ *</label>
+          <select id="new-term-no" class="form-select">
+            <option value="1" ${nextTerm === '1' ? 'selected' : ''}>1</option>
+            <option value="2" ${nextTerm === '2' ? 'selected' : ''}>2</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ปีการศึกษา (พ.ศ.) *</label>
+          <input type="number" id="new-term-year" class="form-input" value="${nextYear}" min="2560" max="2650" required/>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px; margin-top:4px; margin-bottom:16px;">
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+          <input type="checkbox" id="new-term-active" checked/>
+          <span>ตั้งเป็นภาคเรียนปัจจุบันทันที</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+          <input type="checkbox" id="new-term-copy-loads" checked/>
+          <span>คัดลอกภาระการสอน (วิชาและผู้ตรวจ) จากภาคเรียนปัจจุบันมาด้วย</span>
+        </label>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button type="button" class="btn-secondary" style="flex:1; justify-content:center;" onclick="closeModal()">ยกเลิก</button>
+        <button type="button" class="btn-primary" style="flex:1; justify-content:center;" onclick="submitCreateTerm()">
+          ${svg('plus', 14)} <span>สร้างภาคเรียน</span>
+        </button>
+      </div>
+    </form>
+  `;
+  showModal(content);
+}
+
+async function submitCreateTerm() {
+  const term = document.getElementById('new-term-no').value;
+  const year = document.getElementById('new-term-year').value.trim();
+  const setActive = document.getElementById('new-term-active').checked;
+  const copyLoads = document.getElementById('new-term-copy-loads').checked;
+
+  if (!term || !/^\d{4}$/.test(year)) {
+    Swal.fire('ข้อมูลไม่ถูกต้อง', 'กรุณาระบุปีการศึกษา พ.ศ. 4 หลัก', 'warning');
+    return;
+  }
+
+  closeModal();
+  showLoader(true, 'กำลังสร้างภาคเรียนใหม่...');
+  try {
+    await api.createTerm({ term, year, setActive, copyLoads, lineUserId: state.teacher.lineUserId });
+    await reloadAfterTermChange();
+    showToast(`เพิ่มภาคเรียนที่ ${term}/${year} แล้ว`);
+  } catch (err) {
+    showLoader(false);
+    Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+  }
+}
+
+async function handleSetActiveTerm(termId, label) {
+  const ask = await Swal.fire({
+    icon: 'question',
+    title: 'เปลี่ยนภาคเรียนปัจจุบัน?',
+    text: `ต้องการสลับระบบไปใช้ ${label} เป็นภาคเรียนปัจจุบันใช่หรือไม่`,
+    showCancelButton: true,
+    confirmButtonText: 'ยืนยันสลับภาคเรียน',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#1e3a8a'
+  });
+  if (!ask.isConfirmed) return;
+
+  showLoader(true, 'กำลังสลับภาคเรียนปัจจุบัน...');
+  try {
+    await api.setActiveTerm({ termId, lineUserId: state.teacher.lineUserId });
+    await reloadAfterTermChange();
+    showToast(`สลับเป็น ${label} แล้ว`);
+  } catch (err) {
+    showLoader(false);
+    Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+  }
+}
+
+async function reloadAfterTermChange() {
+  const bootstrap = await api.getTeachingBootstrap(state.teacher.lineUserId);
+  state.activeTerm = bootstrap.activeTerm;
+  state.loads = bootstrap.loads || [];
+  state.rounds = bootstrap.rounds || [];
+  state.pendingReviewsCount = bootstrap.pendingReviewsCount || 0;
+  state.manageData = null;
+  state.reportsData = null;
+  state.reportFilterTerm = '';
+  renderUserProfile();
+  renderTabs();
+  showLoader(false);
+  await renderManage(document.getElementById('tab-content'));
 }
 
 function setManageSubTab(subTab) {
@@ -957,19 +1323,102 @@ function onSubjectGroupFilter(groupId) {
   renderManage(document.getElementById('tab-content'));
 }
 
-// เปิด/ปิด สถานะรอบการส่งแผน
+// เปิด/ปิด สถานะรอบการส่งแผน (ต้องยืนยันก่อนเสมอ)
 async function handleToggleRound(roundId, newIsOpen) {
+  const roundObj = ((state.manageData && state.manageData.rounds) || []).find(r => String(r.round_id) === String(roundId)) || {};
+  const todayStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+  const dueStr = roundObj.due_date ? String(roundObj.due_date).slice(0, 10) : '';
+  const isExpired = Boolean(newIsOpen && dueStr && todayStr > dueStr);
+
+  let newDueDate = '';
+  if (isExpired) {
+    const res = await Swal.fire({
+      title: 'รอบนี้เลยวันกำหนดส่งแล้ว',
+      html: `
+        <p style="font-size:13px;color:#475569;margin-bottom:12px;">
+          รอบ "<strong>${esc(roundObj.title || '')}</strong>" ครบกำหนดส่งเมื่อ ${formatDate(dueStr)}<br/>
+          กรุณากำหนดวันส่งใหม่ (พ.ศ.) เพื่อเปิดรับต่อ
+        </p>
+        <div style="text-align:left;">
+          ${thaiDatePicker('swal-new-due', todayStr)}
+        </div>
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'ยืนยันเปิดรับ',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#1e3a8a',
+      preConfirm: () => {
+        const val = document.getElementById('swal-new-due').value;
+        if (!val || val < todayStr) {
+          Swal.showValidationMessage('กรุณาเลือกวันกำหนดส่งตั้งแต่วันนี้เป็นต้นไป');
+          return false;
+        }
+        return val;
+      }
+    });
+    if (!res.isConfirmed) return;
+    newDueDate = res.value;
+  } else {
+    const res = await Swal.fire({
+      title: newIsOpen ? 'ยืนยันเปิดรับรอบส่งแผน?' : 'ยืนยันปิดรอบส่งแผน?',
+      text: newIsOpen
+        ? `ต้องการเปิดรับการส่งแผนในรอบ "${roundObj.title || ''}" หรือไม่?`
+        : `เมื่อปิดรอบ "${roundObj.title || ''}" แล้ว ครูจะไม่สามารถส่งแผนในรอบนี้ได้จนกว่าจะเปิดรับอีกครั้ง`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: newIsOpen ? 'เปิดรับ' : 'ปิดรอบ',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: newIsOpen ? '#16a34a' : '#d97706'
+    });
+    if (!res.isConfirmed) return;
+  }
+
   showLoader(true, 'กำลังอัปเดตสถานะรอบส่งแผน...');
   try {
     await api.toggleRoundStatus({
       roundId: roundId,
       isOpen: newIsOpen,
+      newDueDate: newDueDate,
       lineUserId: state.teacher.lineUserId
     });
+    state.manageData = null;
+    state.reportsData = null;
     const container = document.getElementById('tab-content');
     await renderManage(container);
-  } catch (err) {
+    showToast(newIsOpen ? 'เปิดรับรอบส่งแผนแล้ว' : 'ปิดรอบส่งแผนแล้ว');
     Swal.fire('ข้อผิดพลาด', err.message, 'error');
+  } finally {
+    showLoader(false);
+  }
+}
+
+// ลบรอบการส่งแผน (เฉพาะรอบที่ยังไม่มีแผนส่งเข้ามา)
+async function handleDeleteRound(roundId, roundTitle) {
+  const res = await Swal.fire({
+    title: 'ยืนยันลบรอบการส่งแผน?',
+    text: `ต้องการลบรอบ "${roundTitle}" ออกจากระบบหรือไม่? (ลบได้เฉพาะรอบที่ยังไม่มีครูส่งแผน)`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'ลบรอบนี้',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#dc2626'
+  });
+  if (!res.isConfirmed) return;
+
+  showLoader(true, 'กำลังลบรอบการส่งแผน...');
+  try {
+    await api.deleteRound({
+      roundId: roundId,
+      lineUserId: state.teacher.lineUserId
+    });
+    state.manageData = null;
+    state.reportsData = null;
+    const container = document.getElementById('tab-content');
+    await renderManage(container);
+    showToast(`ลบรอบ "${roundTitle}" เรียบร้อยแล้ว`);
+  } catch (err) {
+    Swal.fire('ไม่สามารถลบได้', err.message, 'error');
   } finally {
     showLoader(false);
   }
@@ -977,7 +1426,7 @@ async function handleToggleRound(roundId, newIsOpen) {
 
 // Modal สร้างรอบส่งแผนใหม่
 function openCreateRoundModal() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayBangkokISO();
 
   const content = `
     <div class="modal-header">
@@ -989,15 +1438,13 @@ function openCreateRoundModal() {
         <label class="form-label">ชื่อรอบการส่งแผน *</label>
         <input type="text" id="round-title" class="form-input" placeholder="เช่น แผนการสอนหน่วยที่ 1 หรือ ประจำสัปดาห์ที่ 1-4" required/>
       </div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-        <div class="form-group">
-          <label class="form-label">วันเริ่มเปิดรับ *</label>
-          <input type="date" id="round-start" class="form-input" value="${today}" required/>
-        </div>
-        <div class="form-group">
-          <label class="form-label">วันกำหนดส่ง *</label>
-          <input type="date" id="round-due" class="form-input" value="${today}" required/>
-        </div>
+      <div class="form-group">
+        <label class="form-label">วันเริ่มเปิดรับ (วัน/เดือน/ปี พ.ศ.) *</label>
+        ${thaiDatePicker('round-start', today)}
+      </div>
+      <div class="form-group">
+        <label class="form-label">วันกำหนดส่ง (วัน/เดือน/ปี พ.ศ.) *</label>
+        ${thaiDatePicker('round-due', today)}
       </div>
       <div class="form-group" style="margin-top:10px;">
         <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
@@ -1040,10 +1487,11 @@ async function submitCreateRound() {
       lineUserId: state.teacher.lineUserId
     });
 
-    Swal.fire('สร้างรอบส่งแผนสำเร็จ', 'ระบบได้เพิ่มรอบและเตรียมรายการติดตามให้ครูทุกท่านเรียบร้อยแล้ว', 'success').then(async () => {
-      const container = document.getElementById('tab-content');
-      await renderManage(container);
-    });
+    state.manageData = null;
+    state.reportsData = null;
+    const container = document.getElementById('tab-content');
+    await renderManage(container);
+    showToast('สร้างรอบส่งแผนสำเร็จ');
   } catch (err) {
     Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
   } finally {
@@ -1058,7 +1506,8 @@ function openCreateLoadModal() {
 
   const teacherOptions = teachers.map(t => `<option value="${t.id}">${esc(t.fullName)} (${esc(t.department || 'ไม่ระบุ')})</option>`).join('');
   const subjectOptions = subjects.map(s => `<option value="${s.subject_id}">${esc(s.code)} - ${esc(s.name)} (${esc(s.level || '-')})</option>`).join('');
-  const reviewerOptions = teachers.map(t => `<option value="${t.id}">${esc(t.fullName)} (${esc(t.department || 'ไม่ระบุ')})</option>`).join('');
+  const reviewerCandidates = teachers.filter(t => t.role !== 'Director');
+  const reviewerOptions = reviewerCandidates.map(t => `<option value="${t.id}">${esc(t.fullName)} (${esc(t.department || 'ไม่ระบุ')})</option>`).join('');
 
   const content = `
     <div class="modal-header">
@@ -1074,13 +1523,15 @@ function openCreateLoadModal() {
       </div>
       <div class="form-group">
         <label class="form-label">รายวิชา *</label>
-        <select id="load-subject-id" class="form-select">
+        <select id="load-subject-id" class="form-select" onchange="onLoadSubjectChange(this.value)">
           ${subjectOptions}
         </select>
       </div>
       <div class="form-group">
         <label class="form-label">ห้องเรียนที่สอน *</label>
-        <input type="text" id="load-classroom" class="form-input" placeholder="เช่น ม.1/1 หรือ ป.4" required/>
+        <select id="load-classroom" class="form-select" required>
+          ${levelSelectOptions((subjects[0] && subjects[0].level) || '')}
+        </select>
       </div>
       <div class="form-group">
         <label class="form-label">หัวหน้าผู้ตรวจประจำวิชา * (ต้องเป็นคนละคนกับครูผู้สอน)</label>
@@ -1098,6 +1549,15 @@ function openCreateLoadModal() {
   `;
 
   showModal(content);
+}
+
+function onLoadSubjectChange(subjectId) {
+  const subjects = (state.manageData && state.manageData.subjects) || [];
+  const sub = subjects.find(s => String(s.subject_id) === String(subjectId));
+  const clsEl = document.getElementById('load-classroom');
+  if (sub && sub.level && clsEl) {
+    clsEl.value = sub.level;
+  }
 }
 
 async function submitCreateLoad() {
@@ -1128,10 +1588,11 @@ async function submitCreateLoad() {
       lineUserId: state.teacher.lineUserId
     });
 
-    Swal.fire('บันทึกสำเร็จ', 'มอบหมายภาระการสอนเรียบร้อยแล้ว', 'success').then(async () => {
-      const container = document.getElementById('tab-content');
-      await renderManage(container);
-    });
+    state.manageData = null;
+    state.reportsData = null;
+    const container = document.getElementById('tab-content');
+    await renderManage(container);
+    showToast('มอบหมายภาระการสอนเรียบร้อยแล้ว');
   } catch (err) {
     Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
   } finally {
@@ -1140,9 +1601,36 @@ async function submitCreateLoad() {
 }
 
 // Modal เปลี่ยนผู้ตรวจประจำวิชา
+async function handleDeleteLoad(loadId, subjectTitle, classroom) {
+  const ask = await Swal.fire({
+    icon: 'warning',
+    title: 'ยืนยันการลบภาระการสอน?',
+    text: `ต้องการลบ "${subjectTitle} (${classroom})" ใช่หรือไม่`,
+    showCancelButton: true,
+    confirmButtonText: 'ลบภาระสอน',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#dc2626'
+  });
+  if (!ask.isConfirmed) return;
+
+  showLoader(true, 'กำลังลบภาระการสอน...');
+  try {
+    await api.deleteTeachingLoad({ loadId: loadId, lineUserId: state.teacher.lineUserId });
+    state.manageData = null;
+    state.reportsData = null;
+    await renderManage(document.getElementById('tab-content'));
+    showToast('ลบภาระการสอนเรียบร้อยแล้ว');
+  } catch (err) {
+    Swal.fire('ไม่สามารถลบได้', err.message, 'error');
+  } finally {
+    showLoader(false);
+  }
+}
+
 function openChangeReviewerModal(loadId, subjectCode, classroom, currentReviewerId) {
   const teachers = (state.manageData && state.manageData.teachers) || [];
-  const reviewerOptions = teachers.map(t => `<option value="${t.id}" ${t.id === currentReviewerId ? 'selected' : ''}>${esc(t.fullName)} (${esc(t.department || 'ไม่ระบุ')})</option>`).join('');
+  const reviewerCandidates = teachers.filter(t => t.role !== 'Director');
+  const reviewerOptions = reviewerCandidates.map(t => `<option value="${t.id}" ${t.id === currentReviewerId ? 'selected' : ''}>${esc(t.fullName)} (${esc(t.department || 'ไม่ระบุ')})</option>`).join('');
 
   const content = `
     <div class="modal-header">
@@ -1195,15 +1683,25 @@ async function submitChangeReviewer(loadId) {
       lineUserId: state.teacher.lineUserId
     });
 
-    Swal.fire('เปลี่ยนผู้ตรวจสำเร็จ', 'ระบบได้บันทึกประวัติและปรับผู้ตรวจเรียบร้อยแล้ว', 'success').then(async () => {
-      const container = document.getElementById('tab-content');
-      await renderManage(container);
-    });
+    state.manageData = null;
+    state.reportsData = null;
+    const container = document.getElementById('tab-content');
+    await renderManage(container);
+    showToast('เปลี่ยนผู้ตรวจเรียบร้อยแล้ว');
   } catch (err) {
     Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
   } finally {
     showLoader(false);
   }
+}
+
+const SCHOOL_LEVELS = ['ปฐมวัย', 'ป.1', 'ป.2', 'ป.3', 'ป.4', 'ป.5', 'ป.6', 'ม.1', 'ม.2', 'ม.3'];
+
+function levelSelectOptions(selectedLevel) {
+  const cur = String(selectedLevel || '').trim();
+  const list = cur && !SCHOOL_LEVELS.includes(cur) ? [cur, ...SCHOOL_LEVELS] : SCHOOL_LEVELS;
+  return `<option value="">-- เลือกระดับชั้น --</option>` +
+    list.map(lv => `<option value="${esc(lv)}" ${lv === cur ? 'selected' : ''}>${esc(lv)}</option>`).join('');
 }
 
 // Modal เพิ่มรายวิชาใหม่
@@ -1233,7 +1731,9 @@ function openCreateSubjectModal() {
       </div>
       <div class="form-group">
         <label class="form-label">ระดับชั้น</label>
-        <input type="text" id="sub-level" class="form-input" placeholder="เช่น ม.1 หรือ ป.5"/>
+        <select id="sub-level" class="form-select">
+          ${levelSelectOptions('')}
+        </select>
       </div>
       <div style="display:flex; gap:10px; margin-top:20px;">
         <button type="button" class="btn-secondary" style="flex:1; justify-content:center;" onclick="closeModal()">ยกเลิก</button>
@@ -1270,12 +1770,12 @@ async function submitCreateSubject() {
       lineUserId: state.teacher.lineUserId
     });
 
-    Swal.fire('เพิ่มรายวิชาสำเร็จ', 'รายวิชาใหม่พร้อมสำหรับการมอบหมายภาระการสอนแล้ว', 'success').then(async () => {
-      state.manageSubTab = 'subjects';
-      state.manageData = null;
-      const container = document.getElementById('tab-content');
-      await renderManage(container);
-    });
+    state.manageSubTab = 'subjects';
+    state.manageData = null;
+    state.reportsData = null;
+    const container = document.getElementById('tab-content');
+    await renderManage(container);
+    showToast('เพิ่มรายวิชาใหม่เรียบร้อยแล้ว');
   } catch (err) {
     Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
   } finally {
@@ -1314,7 +1814,9 @@ function openEditSubjectModal(subject) {
       </div>
       <div class="form-group">
         <label class="form-label">ระดับชั้น</label>
-        <input type="text" id="edit-sub-level" class="form-input" value="${esc(subject.level || '')}" placeholder="เช่น ม.1 หรือ ป.4"/>
+        <select id="edit-sub-level" class="form-select">
+          ${levelSelectOptions(subject.level || '')}
+        </select>
       </div>
       <div style="display:flex; gap:10px; margin-top:20px;">
         <button type="button" class="btn-secondary" style="flex:1; justify-content:center;" onclick="closeModal()">ยกเลิก</button>
@@ -1365,8 +1867,9 @@ async function submitUpdateSubject(subjectId) {
       }
     }
 
-    Swal.fire('บันทึกสำเร็จ', 'แก้ไขข้อมูลรายวิชาเรียบร้อยแล้ว', 'success');
-    renderManage(document.getElementById('tab-content'));
+    state.manageData = null;
+    await renderManage(document.getElementById('tab-content'));
+    showToast('แก้ไขข้อมูลรายวิชาเรียบร้อยแล้ว');
   } catch (err) {
     Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
   } finally {
@@ -1402,8 +1905,9 @@ async function handleDeleteSubject(subjectId, code, name) {
       state.manageData.subjects = state.manageData.subjects.filter(x => String(x.subject_id) !== String(subjectId));
     }
 
-    Swal.fire('ลบรายวิชาสำเร็จ', `ลบรายวิชา ${esc(code)} ออกจากระบบแล้ว`, 'success');
-    renderManage(document.getElementById('tab-content'));
+    state.manageData = null;
+    await renderManage(document.getElementById('tab-content'));
+    showToast(`ลบรายวิชา ${code} ออกจากระบบแล้ว`);
   } catch (err) {
     Swal.fire('ไม่สามารถลบได้', err.message, 'error');
   } finally {
@@ -1415,16 +1919,17 @@ async function handleDeleteSubject(subjectId, code, name) {
 // Modals & Actions
 // --------------------------------------------------------------------------
 
-function openSubmitModal(loadId) {
+function openSubmitModal(loadId, planId) {
   const load = state.loads.find(l => String(l.load_id) === String(loadId));
   if (!load) return;
   state.selectedLoad = load;
   state.uploadedBase64 = null;
   state.uploadedFileName = null;
 
-  const latestPlan = (load.plans && load.plans.length > 0) ? load.plans[load.plans.length - 1] : null;
-  
-  if (latestPlan && ['Pending_Head', 'Pending_Academic', 'Approved'].includes(latestPlan.status)) {
+  const targetPlan = planId ? (load.plans || []).find(p => String(p.plan_id) === String(planId)) : null;
+  state.selectedPlan = targetPlan;
+
+  if (targetPlan && ['Pending_Head', 'Pending_Academic', 'Approved'].includes(targetPlan.status)) {
     Swal.fire({
       icon: 'info',
       title: 'ไม่สามารถแก้ไขได้',
@@ -1434,18 +1939,51 @@ function openSubmitModal(loadId) {
     return;
   }
 
-  const isRevise = latestPlan && latestPlan.status === 'Revise';
-  const hasExistingPdf = latestPlan && latestPlan.drive_pdf_url;
+  if (!state.rounds || state.rounds.length === 0) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'ยังไม่มีรอบการส่งแผนที่เปิดรับ',
+      text: 'กรุณาติดต่อฝ่ายวิชาการเพื่อเปิดรอบการส่งแผนก่อนครับ',
+      confirmButtonColor: '#1e3a8a'
+    });
+    return;
+  }
+
+  const isRevise = targetPlan && targetPlan.status === 'Revise';
+  const hasExistingPdf = targetPlan && targetPlan.drive_pdf_url;
+
+  // คำนวณเลขหน่วยการเรียนรู้ให้อัตโนมัติ (ถ้ายังไม่เคยสร้าง = 1)
+  const existingPlans = load.plans || [];
+  let maxUnitNo = 0;
+  existingPlans.forEach((p, idx) => {
+    const m = String(p.unit_title || '').match(/^หน่วยที่\s*(\d+)/);
+    const num = m ? parseInt(m[1], 10) : (idx + 1);
+    if (num > maxUnitNo) maxUnitNo = num;
+  });
+
+  let unitNo = maxUnitNo + 1;
+  let unitNameOnly = '';
+  if (targetPlan) {
+    const m = String(targetPlan.unit_title || '').match(/^หน่วยที่\s*(\d+)[\s:：\-]*(.*)$/);
+    if (m) {
+      unitNo = parseInt(m[1], 10);
+      unitNameOnly = (m[2] || '').trim();
+    } else {
+      const idx = existingPlans.findIndex(p => String(p.plan_id) === String(targetPlan.plan_id));
+      unitNo = idx >= 0 ? idx + 1 : 1;
+      unitNameOnly = targetPlan.unit_title || '';
+    }
+  }
 
   const content = `
     <div class="modal-header">
-      <div class="modal-title">${latestPlan ? 'แก้ไขและส่งแผนการสอน' : 'ส่งแผนการสอน'}</div>
+      <div class="modal-title">${targetPlan ? 'แก้ไขและส่งหน่วยการเรียนรู้' : 'เพิ่มหน่วยการเรียนรู้ / ส่งแผน'}</div>
       <button class="modal-close-btn" onclick="closeModal()">${svg('x', 18)}</button>
     </div>
     <div style="margin-bottom:14px; background:#f1f5f9; padding:10px 14px; border-radius:8px; font-size:13px; border:1px solid #e2e8f0;">
       <div><strong>วิชา:</strong> ${esc(load.subject_code)} ${esc(load.subject_name)}</div>
       <div><strong>ชั้นเรียน:</strong> ${esc(load.classroom)} | <strong>ผู้ตรวจ:</strong> ${esc(load.reviewer_name)}</div>
-      ${latestPlan ? `<div><strong>ฉบับปัจจุบัน:</strong> ฉบับที่ ${latestPlan.version || 1}</div>` : ''}
+      ${targetPlan ? `<div><strong>ฉบับปัจจุบัน:</strong> ฉบับที่ ${targetPlan.version || 1}</div>` : ''}
     </div>
 
     ${isRevise ? `
@@ -1458,19 +1996,26 @@ function openSubmitModal(loadId) {
     ` : ''}
 
     <form id="plan-form" onsubmit="handlePlanSubmit(event)">
+      <input type="hidden" id="modal-plan-id" value="${targetPlan ? esc(targetPlan.plan_id) : ''}"/>
       <div class="form-group">
         <label class="form-label">รอบการส่งแผน</label>
         <select id="modal-round-id" class="form-select">
-          ${state.rounds.map(r => `<option value="${r.round_id}" ${latestPlan && latestPlan.round_id === r.round_id ? 'selected' : ''}>${esc(r.title)} (กำหนดส่ง: ${formatDate(r.due_date)})</option>`).join('')}
+          ${state.rounds.map(r => `<option value="${r.round_id}" ${targetPlan && targetPlan.round_id === r.round_id ? 'selected' : ''}>${esc(r.title)} (กำหนดส่ง: ${formatDate(r.due_date)})</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
         <label class="form-label">ชื่อหน่วยการเรียนรู้ / เรื่อง *</label>
-        <input type="text" id="modal-unit-title" class="form-input" placeholder="เช่น หน่วยที่ 1 การออกแบบอัลกอริทึม" value="${latestPlan ? esc(latestPlan.unit_title || '') : ''}" required/>
+        <div style="display:flex; align-items:stretch; gap:8px;">
+          <span style="display:inline-flex; align-items:center; padding:0 12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; font-size:13px; font-weight:800; color:#1e3a8a; white-space:nowrap;">
+            หน่วยที่ ${unitNo}
+          </span>
+          <input type="hidden" id="modal-unit-no" value="${unitNo}"/>
+          <input type="text" id="modal-unit-title" class="form-input" style="flex:1;" placeholder="พิมพ์ชื่อหน่วย เช่น การออกแบบอัลกอริทึม" value="${esc(unitNameOnly)}" required/>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">จำนวนชั่วโมง *</label>
-        <input type="number" id="modal-hours" class="form-input" placeholder="เช่น 4" min="1" max="100" value="${latestPlan ? esc(latestPlan.teaching_hours || '') : ''}" required/>
+        <input type="number" id="modal-hours" class="form-input" placeholder="เช่น 4" min="1" max="100" value="${targetPlan ? esc(targetPlan.teaching_hours || '') : ''}" required/>
       </div>
       <div class="form-group">
         <label class="form-label">ไฟล์แผนการสอน (เฉพาะ PDF ไม่เกิน 10 MB) ${hasExistingPdf ? '(ไม่บังคับ)' : '*'}</label>
@@ -1530,18 +2075,26 @@ function handleFileChange(event) {
 }
 
 async function submitPlanForm(isDraft) {
-  const unitTitle = document.getElementById('modal-unit-title').value.trim();
+  const planIdEl = document.getElementById('modal-plan-id');
+  const planId = planIdEl ? planIdEl.value.trim() : '';
+  const unitNoEl = document.getElementById('modal-unit-no');
+  const unitNo = unitNoEl ? unitNoEl.value.trim() : '';
+  const rawUnitTitle = document.getElementById('modal-unit-title').value.trim();
   const hours = document.getElementById('modal-hours').value.trim();
   const roundId = document.getElementById('modal-round-id').value;
   const load = state.selectedLoad;
-  const latestPlan = (load && load.plans && load.plans.length > 0) ? load.plans[load.plans.length - 1] : null;
+  const targetPlan = state.selectedPlan;
 
-  if (!unitTitle || !hours) {
+  if (!rawUnitTitle || !hours) {
     Swal.fire('กรุณากรอกข้อมูลให้ครบ', 'ระบุชื่อหน่วยการเรียนรู้และจำนวนชั่วโมง', 'warning');
     return;
   }
 
-  if (!state.uploadedBase64 && (!latestPlan || !latestPlan.drive_pdf_url)) {
+  const unitTitle = (unitNo && !/^หน่วยที่\s*\d+/.test(rawUnitTitle))
+    ? `หน่วยที่ ${unitNo}: ${rawUnitTitle}`
+    : rawUnitTitle;
+
+  if (!state.uploadedBase64 && (!targetPlan || !targetPlan.drive_pdf_url)) {
     Swal.fire('กรุณาแนบไฟล์ PDF', 'ต้องแนบไฟล์แผนการสอนประกอบด้วยครับ', 'warning');
     return;
   }
@@ -1551,6 +2104,7 @@ async function submitPlanForm(isDraft) {
 
   try {
     const payload = {
+      planId: planId,
       loadId: load.load_id,
       roundId: roundId,
       unitTitle: unitTitle,
@@ -1562,15 +2116,13 @@ async function submitPlanForm(isDraft) {
     };
 
     await api.submitLessonPlan(payload);
-
-    Swal.fire({
-      icon: 'success',
-      title: isDraft ? 'บันทึกฉบับร่างแล้ว' : 'ส่งแผนการสอนสำเร็จ',
-      text: isDraft ? 'คุณสามารถกลับมาแก้ไขและส่งตรวจได้ตลอดเวลา' : 'ระบบแจ้งเตือนผู้ตรวจเรียบร้อยแล้ว',
-      confirmButtonColor: '#1e3a8a'
-    }).then(() => {
-      window.location.reload();
-    });
+    const bootstrap = await api.getTeachingBootstrap(state.teacher.lineUserId);
+    state.loads = bootstrap.loads || [];
+    state.pendingReviewsCount = bootstrap.pendingReviewsCount || 0;
+    state.reportsData = null;
+    renderTabs();
+    renderCurrentTab();
+    showToast(isDraft ? 'บันทึกฉบับร่างเรียบร้อยแล้ว' : 'ส่งแผนการสอนให้ผู้ตรวจแล้ว');
 
   } catch (err) {
     Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
@@ -1611,7 +2163,7 @@ async function openHistoryModal(planId) {
             <div style="position:absolute; left:-6px; top:0; width:10px; height:10px; border-radius:50%; background:#1e3a8a;"></div>
             <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
               <div style="font-size:13px; font-weight:700; color:#0f172a;">
-                ${esc(rev.reviewer_name)} (${rev.role === 'Head' ? 'หัวหน้ากลุ่มสาระ' : rev.role === 'Academic' ? 'ฝ่ายวิชาการ' : 'ผู้สอน'})
+                ${esc(rev.reviewer_name)} (${rev.role === 'Head' ? 'ผู้ตรวจ/วิชาการ' : rev.role === 'Director' ? 'ผู้อำนวยการ' : rev.role === 'Academic' ? 'ฝ่ายวิชาการ' : 'ผู้สอน'})
               </div>
               <div>${actionBadge}</div>
             </div>
@@ -1621,6 +2173,13 @@ async function openHistoryModal(planId) {
             ${rev.comment ? `
               <div style="margin-top:6px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 10px; font-size:12.5px; color:#334155;">
                 <strong>ข้อเสนอแนะ:</strong> ${esc(rev.comment)}
+              </div>
+            ` : ''}
+            ${rev.pdf_url ? `
+              <div style="margin-top:6px;">
+                <a href="${esc(rev.pdf_url)}" target="_blank" class="btn-secondary" style="font-size:11.5px; padding:4px 10px; text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
+                  ${svg('fileText', 12)} <span>เปิดดูไฟล์ฉบับที่ ${rev.version}</span>
+                </a>
               </div>
             ` : ''}
           </div>
@@ -1685,7 +2244,8 @@ async function openPlanReflectionsListModal(planId, unitTitle) {
           <div style="border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:12px; background:#ffffff;">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:8px;">
               <div>
-                <div style="font-weight:700; font-size:14px; color:#0f172a;">
+                ${ref.lesson_title ? `<div style="font-weight:800; font-size:14px; color:#1e3a8a;">${esc(ref.lesson_title)}</div>` : ''}
+                <div style="font-weight:700; font-size:${ref.lesson_title ? '12.5px' : '14px'}; color:#0f172a;">
                   วันที่สอน: ${formatDate(ref.teach_date)}
                 </div>
                 <div style="font-size:12px; color:#64748b; margin-top:2px;">
@@ -1695,8 +2255,18 @@ async function openPlanReflectionsListModal(planId, unitTitle) {
               <div>${lockBadge}</div>
             </div>
 
-            <div style="background:#f8fafc; border-radius:6px; padding:10px; font-size:12.5px; color:#334155; margin-bottom:10px;">
-              <div><strong>ผลการสอน:</strong> ${esc(ref.outcomes)}</div>
+            <div style="background:#f8fafc; border-radius:6px; padding:10px; font-size:12.5px; color:#334155; margin-bottom:10px; overflow-wrap:anywhere; word-break:break-word;">
+              ${(() => {
+                const kpa = parseReflectionOutcomes(ref.outcomes);
+                if (kpa.hasKpa) {
+                  return `
+                    <div><strong>1.1 ความรู้ (K):</strong> ${esc(kpa.k)}</div>
+                    <div style="margin-top:2px;"><strong>1.2 ทักษะ/กระบวนการ (P):</strong> ${esc(kpa.p)}</div>
+                    <div style="margin-top:2px;"><strong>1.3 เจตคติ (A):</strong> ${esc(kpa.a)}</div>
+                  `;
+                }
+                return `<div><strong>ผลการสอน:</strong> ${esc(ref.outcomes)}</div>`;
+              })()}
               ${ref.problems ? `<div style="margin-top:4px;"><strong>ปัญหา:</strong> ${esc(ref.problems)}</div>` : ''}
               ${ref.solutions ? `<div style="margin-top:4px;"><strong>แนวทางพัฒนา:</strong> ${esc(ref.solutions)}</div>` : ''}
             </div>
@@ -1726,6 +2296,8 @@ async function openPlanReflectionsListModal(planId, unitTitle) {
       }).join('');
     }
 
+    state.currentModalReflections = { planId, unitTitle, list };
+
     const content = `
       <div class="modal-header">
         <div class="modal-title">บันทึกหลังสอนทั้งหมด</div>
@@ -1737,10 +2309,17 @@ async function openPlanReflectionsListModal(planId, unitTitle) {
       <div style="max-height:420px; overflow-y:auto; padding-right:4px;">
         ${listHtml}
       </div>
-      <div style="margin-top:16px; display:flex; justify-content:space-between;">
-        <button class="btn-primary" onclick='openReflectionModal("${planId}", "${esc(unitTitle)}")'>
-          ${svg('plus', 14)} <span>เพิ่มวันสอนใหม่</span>
-        </button>
+      <div style="margin-top:16px; display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn-primary" onclick='openReflectionModal("${planId}", "${esc(unitTitle)}")'>
+            ${svg('plus', 14)} <span>เพิ่มวันสอนใหม่</span>
+          </button>
+          ${list.length > 1 ? `
+            <button class="btn-secondary" onclick="printAllPlanReflections()">
+              ${svg('printer', 14)} <span>พิมพ์ทั้งหมด (${list.length} แผน)</span>
+            </button>
+          ` : ''}
+        </div>
         <button class="btn-secondary" onclick="closeModal()">ปิด</button>
       </div>
     `;
@@ -1753,15 +2332,36 @@ async function openPlanReflectionsListModal(planId, unitTitle) {
   }
 }
 
+function parseReflectionOutcomes(raw) {
+  const txt = String(raw || '').trim();
+  const mk = txt.match(/\[K\]\s*([\s\S]*?)(?=\n?\[P\]|\n?\[A\]|$)/);
+  const mp = txt.match(/\[P\]\s*([\s\S]*?)(?=\n?\[A\]|$)/);
+  const ma = txt.match(/\[A\]\s*([\s\S]*?)$/);
+  if (mk || mp || ma) {
+    return {
+      hasKpa: true,
+      k: mk ? mk[1].trim() : '',
+      p: mp ? mp[1].trim() : '',
+      a: ma ? ma[1].trim() : ''
+    };
+  }
+  return { hasKpa: false, k: txt, p: '', a: '' };
+}
+
+function formatReflectionOutcomes(k, p, a) {
+  return `[K] ${k}\n[P] ${p}\n[A] ${a}`;
+}
+
 // Modal บันทึกหลังสอน (เพิ่มใหม่ หรือ แก้ไขฉบับร่าง)
 function openReflectionModal(planId, unitTitle, existing) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayBangkokISO();
   const refId = existing ? existing.reflection_id : '';
-  const dateVal = existing && existing.teach_date ? new Date(existing.teach_date).toISOString().split('T')[0] : today;
+  const lessonVal = existing ? (existing.lesson_title || '') : '';
+  const dateVal = existing && existing.teach_date ? String(existing.teach_date).slice(0, 10) : today;
   const totalVal = existing ? existing.total_students : '';
   const presentVal = existing ? existing.present_students : '';
   const passedVal = existing ? existing.passed_students : '';
-  const outcomesVal = existing ? existing.outcomes : '';
+  const kpa = parseReflectionOutcomes(existing ? existing.outcomes : '');
   const problemsVal = existing ? existing.problems : '';
   const solutionsVal = existing ? existing.solutions : '';
 
@@ -1776,8 +2376,12 @@ function openReflectionModal(planId, unitTitle, existing) {
     <form id="reflection-form">
       <input type="hidden" id="ref-id" value="${esc(refId)}"/>
       <div class="form-group">
-        <label class="form-label">วันที่สอนจริง *</label>
-        <input type="date" id="ref-date" class="form-input" value="${dateVal}" max="${today}" required/>
+        <label class="form-label">แผนการจัดการเรียนรู้ที่ / เรื่องที่สอน *</label>
+        <input type="text" id="ref-lesson-title" class="form-input" placeholder="เช่น แผนที่ 1: สมบัติของสสาร (คาบที่ 1-2)" value="${esc(lessonVal)}" required/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">วันที่สอนจริง (วัน/เดือน/ปี พ.ศ.) *</label>
+        ${thaiDatePicker('ref-date', dateVal)}
       </div>
       <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
         <div class="form-group">
@@ -1798,15 +2402,23 @@ function openReflectionModal(planId, unitTitle, existing) {
       </div>
 
       <div class="form-group">
-        <label class="form-label">ผลการจัดการเรียนรู้ *</label>
-        <textarea id="ref-outcomes" class="form-textarea" rows="2" placeholder="นักเรียนส่วนใหญ่มีความเข้าใจและปฏิบัติกิจกรรมได้ตามจุดประสงค์..." required>${esc(outcomesVal)}</textarea>
+        <label class="form-label">1. ผลที่เกิดกับผู้เรียน — 1.1 ด้านความรู้ K (Knowledge) *</label>
+        <textarea id="ref-outcome-k" class="form-textarea" rows="2" placeholder="นักเรียนสามารถอธิบาย/บอกหลักการได้..." required>${esc(kpa.k)}</textarea>
       </div>
       <div class="form-group">
-        <label class="form-label">ปัญหา / อุปสรรค</label>
+        <label class="form-label">1.2 ด้านทักษะ/กระบวนการ/กระบวนการคิด P (Practice) *</label>
+        <textarea id="ref-outcome-p" class="form-textarea" rows="2" placeholder="นักเรียนสามารถปฏิบัติ/วิเคราะห์/ทำงานกลุ่มได้..." required>${esc(kpa.p)}</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">1.3 ด้านเจตคติ/คุณลักษณะอันพึงประสงค์ A (Attribute) *</label>
+        <textarea id="ref-outcome-a" class="form-textarea" rows="2" placeholder="นักเรียนมีความรับผิดชอบ ใฝ่เรียนรู้ และให้ความร่วมมือ..." required>${esc(kpa.a)}</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">2. ปัญหา / อุปสรรคที่พบจากการจัดการเรียนรู้</label>
         <textarea id="ref-problems" class="form-textarea" rows="2" placeholder="มีนักเรียนบางคนยังสับสนขั้นตอน...">${esc(problemsVal)}</textarea>
       </div>
       <div class="form-group">
-        <label class="form-label">ข้อเสนอแนะ / แนวทางแก้ไข</label>
+        <label class="form-label">3. ข้อเสนอแนะ / แนวทางแก้ไข</label>
         <textarea id="ref-solutions" class="form-textarea" rows="2" placeholder="จัดกิจกรรมทบทวนเพิ่มเติมในคาบถัดไป...">${esc(solutionsVal)}</textarea>
       </div>
       <div style="display:flex; gap:10px; margin-top:20px;">
@@ -1846,16 +2458,20 @@ function calcPassedPct() {
 
 async function submitReflection(planId, isLocked) {
   const refId = document.getElementById('ref-id').value;
+  const lessonTitle = document.getElementById('ref-lesson-title').value.trim();
   const teachDate = document.getElementById('ref-date').value;
   const total = parseInt(document.getElementById('ref-total').value, 10);
   const present = parseInt(document.getElementById('ref-present').value, 10);
   const passed = parseInt(document.getElementById('ref-passed').value, 10);
-  const outcomes = document.getElementById('ref-outcomes').value.trim();
+  const kVal = document.getElementById('ref-outcome-k').value.trim();
+  const pVal = document.getElementById('ref-outcome-p').value.trim();
+  const aVal = document.getElementById('ref-outcome-a').value.trim();
+  const outcomes = formatReflectionOutcomes(kVal, pVal, aVal);
   const problems = document.getElementById('ref-problems').value.trim();
   const solutions = document.getElementById('ref-solutions').value.trim();
 
-  if (!teachDate || isNaN(total) || isNaN(present) || isNaN(passed) || !outcomes) {
-    Swal.fire('กรุณากรอกข้อมูลให้ครบ', 'กรอกวันที่ ยอดนักเรียน และผลการจัดการเรียนรู้', 'warning');
+  if (!lessonTitle || !teachDate || isNaN(total) || isNaN(present) || isNaN(passed) || !kVal || !pVal || !aVal) {
+    Swal.fire('กรุณากรอกข้อมูลให้ครบ', 'ระบุแผนการสอนที่/เรื่องที่สอน วันที่ ยอดนักเรียน และผลที่เกิดกับผู้เรียนทั้ง K, P, A', 'warning');
     return;
   }
 
@@ -1875,6 +2491,7 @@ async function submitReflection(planId, isLocked) {
     await api.saveReflection({
       reflectionId: refId || '',
       planId: planId,
+      lessonTitle: lessonTitle,
       teachDate: teachDate,
       totalStudents: total,
       presentStudents: present,
@@ -1886,15 +2503,9 @@ async function submitReflection(planId, isLocked) {
       lineUserId: state.teacher.lineUserId
     });
 
-    Swal.fire({
-      icon: 'success',
-      title: isLocked ? 'ยืนยันบันทึกสมบูรณ์แล้ว' : 'บันทึกฉบับร่างสำเร็จ',
-      text: isLocked ? 'บันทึกถูกล็อกตามระเบียบเรียบร้อยแล้ว' : 'คุณสามารถกลับมาแก้ไขได้ตลอดเวลา',
-      confirmButtonColor: '#1e3a8a'
-    }).then(() => {
-      // รีเฟรชแท็บบันทึกหลังสอน
-      renderCurrentTab();
-    });
+    state.reportsData = null;
+    renderCurrentTab();
+    showToast(isLocked ? 'ยืนยันบันทึกหลังสอนสมบูรณ์แล้ว' : 'บันทึกฉบับร่างเรียบร้อยแล้ว');
 
   } catch (err) {
     Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
@@ -1930,9 +2541,8 @@ function promptUnlockReflection(reflectionId, teachDateStr, planId, unitTitle) {
           lineUserId: state.teacher.lineUserId
         });
 
-        Swal.fire('ปลดล็อกเรียบร้อย', 'ครูผู้สอนสามารถเข้าไปแก้ไขบันทึกได้แล้ว', 'success').then(() => {
-          openPlanReflectionsListModal(planId, unitTitle);
-        });
+        showToast('ปลดล็อกบันทึกหลังสอนเรียบร้อยแล้ว');
+        openPlanReflectionsListModal(planId, unitTitle);
       } catch (err) {
         Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
       } finally {
@@ -1982,7 +2592,7 @@ function getStatusBadge(status) {
   switch (status) {
     case 'Draft': return `<span class="status-badge status-draft">${svg('edit', 12)} ฉบับร่าง</span>`;
     case 'Pending_Head': return `<span class="status-badge status-pending_head">${svg('clock', 12)} รอหัวหน้าตรวจ</span>`;
-    case 'Pending_Academic': return `<span class="status-badge status-pending_academic">${svg('eye', 12)} รอวิชาการรับรอง</span>`;
+    case 'Pending_Academic': return `<span class="status-badge status-pending_academic">${svg('eye', 12)} รอ ผอ. รับรอง</span>`;
     case 'Approved': return `<span class="status-badge status-approved">${svg('checkCircle', 12)} รับรองแล้ว</span>`;
     case 'Revise': return `<span class="status-badge status-revise">${svg('refresh', 12)} ให้แก้ไข</span>`;
     default: return `<span class="status-badge status-not_submitted">${svg('circle', 12)} ยังไม่ส่ง</span>`;
@@ -2012,11 +2622,13 @@ function esc(str) {
  */
 async function loadReportData() {
   const lineUserId = state.currentLineProfile ? state.currentLineProfile.userId : 'mock_line_user_id';
+  const scope = state.isAcademic ? (state.reportScope || 'all') : 'mine';
   const data = await api.getTeachingReport(
     lineUserId,
     state.reportFilterTerm || '',
     state.reportFilterRound || '',
-    state.reportFilterGroup || ''
+    state.reportFilterGroup || '',
+    scope
   );
   state.reportsData = data;
   if (!state.reportFilterTerm && data.activeTermId) {
@@ -2054,7 +2666,12 @@ async function renderReports(container) {
 
   const d = state.reportsData;
   const s = d.summary || {};
-  const currentSubView = state.reportSubView || 'plans';
+  const isPersonalReport = !state.isAcademic || (d.scope ? d.scope === 'mine' : state.reportScope === 'mine');
+  let currentSubView = state.reportSubView || 'plans';
+  if (isPersonalReport && currentSubView === 'compliance') {
+    currentSubView = 'plans';
+    state.reportSubView = 'plans';
+  }
 
   // สรุปข้อมูลตัวเลือกตัวกรอง
   const termOptions = (d.terms || []).map(t => 
@@ -2100,6 +2717,15 @@ async function renderReports(container) {
           ${groupOptions}
         </select>
       </div>
+      ${state.isAcademic ? `
+        <div class="filter-group">
+          <label class="filter-label">ขอบเขตข้อมูล</label>
+          <select id="report-filter-scope" class="filter-select" onchange="onFilterReportChange()">
+            <option value="all" ${state.reportScope !== 'mine' ? 'selected' : ''}>รวมทั้งโรงเรียน</option>
+            <option value="mine" ${state.reportScope === 'mine' ? 'selected' : ''}>เฉพาะรายวิชาของฉัน</option>
+          </select>
+        </div>
+      ` : ''}
       <div>
         <button class="btn btn-secondary" onclick="onFilterReportChange()" style="height:38px;">
           ${svg('refresh', 14)} รีเฟรช
@@ -2125,7 +2751,7 @@ async function renderReports(container) {
         <span class="metric-sub">แผนการสอน</span>
       </div>
       <div class="metric-card highlight-cyan">
-        <span class="metric-label">รอวิชาการตรวจ</span>
+        <span class="metric-label">รอ ผอ. รับรอง</span>
         <span class="metric-num">${s.pendingAcademic || 0}</span>
         <span class="metric-sub">แผนการสอน</span>
       </div>
@@ -2144,7 +2770,7 @@ async function renderReports(container) {
     <!-- แถบสลับมุมมอง & เครื่องมือส่งออกข้อมูล -->
     <div class="action-toolbar no-print">
       <div class="subview-tabs">
-        ${state.isAcademic ? `
+        ${state.isAcademic && !isPersonalReport ? `
           <button class="subview-btn ${currentSubView === 'compliance' ? 'active' : ''}" onclick="setReportSubView('compliance')">
             ${svg('barChart', 14)} สรุปรายครู (${(d.teacherSummary || []).length})
           </button>
@@ -2187,10 +2813,17 @@ async function onFilterReportChange() {
   const termEl = document.getElementById('report-filter-term');
   const roundEl = document.getElementById('report-filter-round');
   const groupEl = document.getElementById('report-filter-group');
+  const scopeEl = document.getElementById('report-filter-scope');
 
   if (termEl) state.reportFilterTerm = termEl.value;
   if (roundEl) state.reportFilterRound = roundEl.value;
   if (groupEl) state.reportFilterGroup = groupEl.value;
+  if (scopeEl) {
+    state.reportScope = scopeEl.value;
+    if (state.reportScope === 'mine' && state.reportSubView === 'compliance') {
+      state.reportSubView = 'plans';
+    }
+  }
 
   showLoader(true, 'กำลังปรับปรุงข้อมูลรายงาน...');
   try {
@@ -2277,7 +2910,7 @@ function renderTeacherComplianceDashboard(list) {
   const statusMeta = (st) => {
     switch (st) {
       case 'Approved': return { label: 'อนุมัติแล้ว', bg: '#dcfce7', color: '#15803d' };
-      case 'Pending_Academic': return { label: 'รอวิชาการ', bg: '#e0f2fe', color: '#0369a1' };
+      case 'Pending_Academic': return { label: 'รอ ผอ. รับรอง', bg: '#e0f2fe', color: '#0369a1' };
       case 'Pending_Head': return { label: 'รอหัวหน้าตรวจ', bg: '#fef3c7', color: '#b45309' };
       case 'Revise': return { label: 'ส่งกลับแก้ไข', bg: '#fee2e2', color: '#b91c1c' };
       default: return { label: 'ยังไม่ส่ง', bg: '#fef2f2', color: '#dc2626' };
@@ -2299,7 +2932,7 @@ function renderTeacherComplianceDashboard(list) {
           <div style="min-width:0;">
             <span style="font-weight:700; color:#1e3a8a;">${esc(it.subject_code)}</span>
             <span style="color:#0f172a; font-weight:600;">${esc(it.subject_name)}</span>
-            <span style="color:#64748b;">(${esc(it.classroom)} · ${esc(it.round_title)})</span>
+            <span style="color:#64748b;">(${esc(it.classroom)}${it.unit_title ? ' · ' + esc(it.unit_title) : ' · ' + esc(it.round_title)})</span>
           </div>
           <span style="flex:none; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; background:${sm.bg}; color:${sm.color};">${sm.label}</span>
         </div>
@@ -2373,12 +3006,12 @@ function renderPlansReportTable(plans) {
         </td>
         <td style="font-size:12px;">
           <div>กำหนด: ${p.round_end_date ? formatDate(p.round_end_date) : '-'}</div>
-          <div class="text-muted">ส่งเมื่อ: ${esc(p.submitted_at)}</div>
+          <div class="text-muted">ส่งเมื่อ: ${p.submitted_at && p.submitted_at !== '-' ? formatDate(p.submitted_at) : '-'}</div>
         </td>
         <td style="text-align:center; white-space:nowrap;">
           <div style="display:inline-flex; gap:4px;">
             ${fileBtn}
-            <button class="btn btn-secondary" onclick="printPlanSheet('${esc(p.plan_id)}')" style="padding:4px 8px; font-size:11.5px;" title="พิมพ์ทะเบียนแผนฉบับนี้">
+            <button class="btn btn-secondary" ${p.status === 'Approved' ? `onclick="printPlanSheet('${esc(p.plan_id)}')"` : 'disabled'} style="padding:4px 8px; font-size:11.5px;${p.status === 'Approved' ? '' : ' opacity:0.45; cursor:not-allowed;'}" title="${p.status === 'Approved' ? 'พิมพ์บันทึกข้อความฉบับนี้' : 'รอ ผอ. รับรองก่อนจึงจะพิมพ์ได้'}">
               ${svg('printer', 12)}
             </button>
           </div>
@@ -2440,7 +3073,7 @@ function renderReflectionsReportTable(reflections) {
         </td>
         <td>
           <div style="font-weight:700; color:var(--primary);">${esc(rf.subject_code)} ${esc(rf.subject_name)}</div>
-          <small class="text-muted">${esc(rf.classroom)} · ครูผู้สอน: ${esc(rf.teacher_name)}</small>
+          <small class="text-muted">${esc(rf.classroom)} · ${rf.lesson_title ? esc(rf.lesson_title) + ' · ' : ''}ครูผู้สอน: ${esc(rf.teacher_name)}</small>
         </td>
         <td>
           <div style="font-size:12.5px;">มาเรียน: <strong>${rf.present_students}</strong> / ${rf.total_students} คน</div>
@@ -2625,60 +3258,161 @@ function exportReflectionsCSV() {
 // Official A4 Print Layouts (แบบฟอร์มเอกสารทางการ โรงเรียนบ้านห้วยตาด)
 // --------------------------------------------------------------------------
 
+function formatThaiFullDate(val) {
+  const d = val && val !== '-' ? new Date(val) : new Date();
+  if (isNaN(d.getTime())) return formatDate(new Date().toISOString());
+  return `${d.getDate()} ${THAI_MONTHS_FULL[d.getMonth()]} ${d.getFullYear() + 543}`;
+}
+
+function buildMemoHeaderHtml(subjectText, dateText) {
+  const garudaUrl = new URL('../img/garuda.png', document.baseURI).href;
+  return `
+    <div style="display:flex; align-items:flex-end; gap:12px; min-height:1.5cm; margin-bottom:4px;">
+      <div style="flex:none;">
+        <img class="print-garuda-img" src="${garudaUrl}" alt="ตราครุฑ" width="52" height="57" style="height:1.5cm; width:auto; display:block;">
+      </div>
+      <div style="flex:1; text-align:center; padding-right:52px;">
+        <div style="font-size:29pt; font-weight:bold; line-height:1;">บันทึกข้อความ</div>
+      </div>
+    </div>
+
+    <div style="font-size:16pt; font-weight:normal; padding-bottom:6px; margin-bottom:8px;">
+      <div style="display:flex; align-items:baseline;">
+        <strong style="flex:none;">ส่วนราชการ</strong>
+        <span style="flex:1; border-bottom:1px dotted #000; padding-left:8px; line-height:1.15;">โรงเรียนบ้านห้วยตาด สำนักงานเขตพื้นที่การศึกษาประถมศึกษาเลย เขต 1</span>
+      </div>
+      <div style="display:flex; align-items:baseline; gap:6px; margin-top:3px;">
+        <div style="flex:1; display:flex; align-items:baseline;">
+          <strong style="flex:none;">ที่</strong>
+          <span style="flex:1; border-bottom:1px dotted #000; padding-left:8px; line-height:1.15;">ศธ 04136.0411/</span>
+        </div>
+        <div style="flex:1; display:flex; align-items:baseline;">
+          <strong style="flex:none;">วันที่</strong>
+          <span style="flex:1; border-bottom:1px dotted #000; padding-left:8px; line-height:1.15;">${esc(dateText)}</span>
+        </div>
+      </div>
+      <div style="display:flex; align-items:baseline; margin-top:3px;">
+        <strong style="flex:none;">เรื่อง</strong>
+        <span style="flex:1; border-bottom:1px dotted #000; padding-left:8px; line-height:1.15;">${esc(subjectText)}</span>
+      </div>
+    </div>
+
+    <div style="font-size:16pt; font-weight:normal; margin-bottom:10px;">
+      <strong>เรียน</strong>&nbsp;&nbsp;ผู้อำนวยการโรงเรียนบ้านห้วยตาด
+    </div>
+  `;
+}
+
+function triggerMemoPrint(printArea) {
+  const imgs = Array.from(printArea.querySelectorAll('.print-garuda-img, .print-doc-logo'));
+  const waitImgs = Promise.all(imgs.map(img => (
+    img.complete && img.naturalWidth
+      ? Promise.resolve()
+      : new Promise(res => { img.onload = res; img.onerror = res; })
+  )));
+  const waitFonts = (document.fonts && document.fonts.load)
+    ? Promise.all([
+        document.fonts.load("16pt 'TH Sarabun New'", 'ก'),
+        document.fonts.load("bold 16pt 'TH Sarabun New'", 'ก')
+      ]).then(() => document.fonts.ready)
+    : Promise.resolve();
+  const timeout = new Promise(res => setTimeout(res, 4000));
+  Promise.race([Promise.all([waitImgs, waitFonts]), timeout])
+    .catch(() => {})
+    .then(() => requestAnimationFrame(() => window.print()));
+}
+
 /**
- * พิมพ์สรุปรายงานผลการติดตามการจัดทำและส่งแผนการจัดการเรียนรู้ (A4)
+ * พิมพ์สรุปรายงานผลการติดตามการจัดทำและส่งแผนการจัดการเรียนรู้ (A4 - บันทึกข้อความ)
  */
 function printSummaryReport() {
   if (!state.reportsData) return;
   const d = state.reportsData;
   const s = d.summary || {};
   const plans = d.plans || [];
+  const isPersonal = !state.isAcademic || (d.scope ? d.scope === 'mine' : state.reportScope === 'mine');
 
   const termObj = (d.terms || []).find(t => String(t.termId) === String(state.reportFilterTerm)) || {};
   const termTitle = termObj.termName ? `ภาคเรียนที่ ${termObj.termName}` : 'ประจำภาคเรียน';
+  const todayThaiFull = formatThaiFullDate(new Date().toISOString());
+  const reporterName = state.teacher && state.teacher.fullName ? state.teacher.fullName : '';
+  const directorName = d.directorName || state.directorName || '';
 
-  const rows = plans.map((p, idx) => `
-    <tr>
-      <td style="text-align:center;">${idx + 1}</td>
-      <td style="text-align:center;">${esc(p.subject_code)}</td>
-      <td>${esc(p.subject_name)}</td>
-      <td style="text-align:center;">${esc(p.classroom)}</td>
-      <td>${esc(p.teacher_name)}</td>
-      <td>${esc(p.unit_title)}</td>
-      <td style="text-align:center;">${esc(p.status_label)}</td>
-      <td style="text-align:center;">${p.submitted_at !== '-' ? esc(p.submitted_at.slice(0, 10)) : '-'}</td>
-      <td style="text-align:center;">${p.is_overdue ? 'เกินกำหนด' : 'ปกติ'}</td>
-    </tr>
-  `).join('');
+  // สำหรับเอกสารส่วนตัวของครู แสดงตามรายการในทะเบียนส่งแผน (ตรงกับตารางบนหน้าจอ)
+  const personalRecords = isPersonal
+    ? plans.map(p => ({
+        subject_code: p.subject_code,
+        subject_name: p.subject_name,
+        classroom: p.classroom,
+        unit_title: p.unit_title,
+        status_label: p.status_label,
+        submitted_at: p.submitted_at && p.submitted_at !== '-' ? formatDate(p.submitted_at) : '-',
+        note: p.is_overdue ? 'เกินกำหนด' : 'ปกติ'
+      }))
+    : [];
 
-  const todayDateStr = formatDate(new Date().toISOString());
+  const rows = isPersonal
+    ? (personalRecords.length
+        ? personalRecords.map((r, idx) => `
+          <tr>
+            <td style="text-align:center;">${idx + 1}</td>
+            <td style="text-align:center;">${esc(r.subject_code)}</td>
+            <td>${esc(r.subject_name)}</td>
+            <td style="text-align:center;">${esc(r.classroom)}</td>
+            <td>${esc(r.unit_title)}</td>
+            <td style="text-align:center;">${esc(r.status_label)}</td>
+            <td style="text-align:center;">${esc(r.submitted_at)}</td>
+            <td style="text-align:center;">${esc(r.note)}</td>
+          </tr>
+        `).join('')
+        : '<tr><td colspan="8" style="text-align:center;">ยังไม่มีรายการส่งแผนการจัดการเรียนรู้</td></tr>')
+    : (plans.length
+        ? plans.map((p, idx) => `
+          <tr>
+            <td style="text-align:center;">${idx + 1}</td>
+            <td style="text-align:center;">${esc(p.subject_code)}</td>
+            <td>${esc(p.subject_name)}</td>
+            <td style="text-align:center;">${esc(p.classroom)}</td>
+            <td>${esc(p.teacher_name)}</td>
+            <td>${esc(p.unit_title)}</td>
+            <td style="text-align:center;">${esc(p.status_label)}</td>
+            <td style="text-align:center;">${p.submitted_at && p.submitted_at !== '-' ? formatDate(p.submitted_at) : '-'}</td>
+            <td style="text-align:center;">${p.is_overdue ? 'เกินกำหนด' : 'ปกติ'}</td>
+          </tr>
+        `).join('')
+        : '<tr><td colspan="9" style="text-align:center;">ไม่มีข้อมูลแผนการจัดการเรียนรู้</td></tr>');
+
+  const memoSubject = isPersonal
+    ? `รายงานผลการส่งแผนการจัดการเรียนรู้รายบุคคล ${termTitle}`
+    : `รายงานผลการติดตามการจัดทำและส่งแผนการจัดการเรียนรู้ ${termTitle}`;
+
+  const introParagraph = isPersonal
+    ? `ด้วยข้าพเจ้า ${esc(reporterName || 'ครูผู้สอน')} ตำแหน่ง ครูผู้สอน โรงเรียนบ้านห้วยตาด ได้ดำเนินการจัดทำและส่งแผนการจัดการเรียนรู้ในรายวิชาที่รับผิดชอบ ${esc(termTitle)} มีภาระสอนทั้งหมด ${s.totalLoads || 0} รายวิชา/ห้องเรียน ส่งแผนแล้ว ${personalRecords.length} รายการ และได้รับการรับรองแล้ว ${s.approved || 0} รายการ รายละเอียดดังตารางต่อไปนี้`
+    : `ด้วยงานวิชาการ โรงเรียนบ้านห้วยตาด ได้สรุปผลการติดตามการจัดทำและส่งแผนการจัดการเรียนรู้ ${esc(termTitle)} มีภาระสอนทั้งหมด ${s.totalLoads || 0} รายการ ส่งแผนแล้ว ${s.submittedPlans || 0} รายการ (${s.submissionRate || 0}%) อนุมัติแล้ว ${s.approved || 0} รายการ (${s.approvedRate || 0}%) และค้างส่งเกินกำหนด ${s.overdue || 0} รายการ รายละเอียดดังตารางต่อไปนี้`;
+
+  const reporterRoleTitle = isPersonal ? 'ตำแหน่ง ครูผู้สอน' : 'หัวหน้างานวิชาการ / ผู้รายงาน';
 
   const printHtml = `
-    <article class="print-document">
-      <header class="print-header">
-        <h1>โรงเรียนบ้านห้วยตาด</h1>
-        <h2>แบบรายงานผลการติดตามการจัดทำและส่งแผนการจัดการเรียนรู้</h2>
-        <p>${termTitle} · ข้อมูล ณ วันที่ ${todayDateStr}</p>
-      </header>
+    <article class="print-document" style="font-family:'TH Sarabun New','THSarabunNew','TH SarabunPSK','Sarabun',sans-serif; color:#000; font-size:16pt; font-weight:normal; line-height:1.2;">
+      ${buildMemoHeaderHtml(memoSubject, todayThaiFull)}
 
-      <div style="font-size:10.5pt; margin-bottom:12px; display:flex; justify-content:space-between;">
-        <div><strong>จำนวนภาระสอนทั้งหมด:</strong> ${s.totalLoads || 0} รายการ</div>
-        <div><strong>ส่งแผนแล้ว:</strong> ${s.submittedPlans || 0} รายการ (${s.submissionRate || 0}%)</div>
-        <div><strong>อนุมัติแล้ว:</strong> ${s.approved || 0} รายการ (${s.approvedRate || 0}%)</div>
-        <div><strong>ค้างส่งเกินกำหนด:</strong> ${s.overdue || 0} รายการ</div>
+      <div style="font-size:16pt; font-weight:normal; text-align:left;">
+        <p style="text-indent:2.5cm; margin:0 0 8px 0;">
+          ${introParagraph}
+        </p>
       </div>
 
-      <table class="print-table">
+      <table class="print-table" style="font-size:13.5pt; line-height:1.15; margin:6px 0 10px 0;">
         <thead>
           <tr>
-            <th style="width:30px;">ที่</th>
-            <th style="width:70px;">รหัสวิชา</th>
+            <th style="width:28px;">ที่</th>
+            <th style="width:62px;">รหัสวิชา</th>
             <th>ชื่อรายวิชา</th>
-            <th style="width:50px;">ชั้น</th>
-            <th style="width:130px;">ครูผู้สอน</th>
+            <th style="width:45px;">ชั้น</th>
+            ${isPersonal ? '' : '<th style="width:110px;">ครูผู้สอน</th>'}
             <th>หน่วย / แผนการสอน</th>
-            <th style="width:90px;">สถานะ</th>
-            <th style="width:75px;">วันที่ส่ง</th>
+            <th style="width:82px;">สถานะ</th>
+            <th style="width:72px;">วันที่ส่ง</th>
             <th style="width:65px;">หมายเหตุ</th>
           </tr>
         </thead>
@@ -2687,29 +3421,30 @@ function printSummaryReport() {
         </tbody>
       </table>
 
-      <div class="print-signature-section">
-        <div class="print-signature-box">
-          <p>ลงชื่อ ................................................................ ผู้รายงาน</p>
-          <p>( ................................................................ )</p>
-          <p>ตำแหน่ง หัวหน้างานวิชาการ / ผู้รับผิดชอบ</p>
-        </div>
-        <div class="print-signature-box">
-          <p>ลงชื่อ ................................................................ ผู้รับรอง</p>
-          <p>( ................................................................ )</p>
-          <p>ผู้อำนวยการโรงเรียนบ้านห้วยตาด</p>
-        </div>
+      <div style="font-size:16pt; font-weight:normal; text-align:left;">
+        <p style="text-indent:2.5cm; margin:0 0 12px 0;">
+          จึงเรียนมาเพื่อโปรดทราบและพิจารณา
+        </p>
       </div>
 
-      <footer class="print-meta-footer">
-        <div>พิมพ์จากระบบ Huaytad Lesson Plan · โรงเรียนบ้านห้วยตาด</div>
-        <div>หน้า 1 จาก 1</div>
-      </footer>
+      <div class="print-signature-section" style="margin-top:20px; font-size:16pt; font-weight:normal; line-height:1.25;">
+        <div class="print-signature-box" style="font-size:16pt; line-height:1.25;">
+          <div>ลงชื่อ ............................................... ผู้รายงาน</div>
+          <div>(${esc(reporterName) || '...............................................'})</div>
+          <div>${reporterRoleTitle}</div>
+        </div>
+        <div class="print-signature-box" style="font-size:16pt; line-height:1.25;">
+          <div>ลงชื่อ ............................................... ผู้รับรอง</div>
+          <div>(${esc(directorName) || '...............................................'})</div>
+          <div>ผู้อำนวยการโรงเรียนบ้านห้วยตาด</div>
+        </div>
+      </div>
     </article>
   `;
 
   const printArea = document.getElementById('printable-area');
   printArea.innerHTML = printHtml;
-  window.print();
+  triggerMemoPrint(printArea);
 }
 
 /**
@@ -2749,71 +3484,222 @@ function printPlanSheet(planId) {
     return;
   }
 
-  const todayDateStr = formatDate(new Date().toISOString());
+  if (plan.status !== 'Approved') {
+    Swal.fire({ icon: 'info', title: 'ยังไม่สามารถพิมพ์ได้', text: 'ต้องได้รับการรับรองจากผู้อำนวยการก่อนจึงจะพิมพ์บันทึกข้อความได้' });
+    return;
+  }
+
+  const submittedThaiFull = formatThaiFullDate(plan.submitted_at);
+  const isApproved = plan.status === 'Approved';
+  const isHeadChecked = plan.status === 'Pending_Academic' || isApproved;
+  const directorName = plan.director_name || (state.reportsData && state.reportsData.directorName) || state.directorName || '';
+  const reviewNoteText = esc(plan.latest_review_note) || (isHeadChecked ? 'แผนการจัดการเรียนรู้ครบถ้วนตามองค์ประกอบ' : '.............................................................');
+  const chkBox = (on) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;border:1px solid #000;vertical-align:middle;margin-right:4px;font-size:10px;font-weight:bold;line-height:1;">${on ? '✓' : '&nbsp;'}</span>`;
 
   const printHtml = `
-    <article class="print-document">
-      <header class="print-header">
-        <h1>โรงเรียนบ้านห้วยตาด</h1>
-        <h2>ทะเบียนแผนการจัดการเรียนรู้และการตรวจรับรอง</h2>
-        <p>รหัสแผนงาน: ${esc(plan.plan_id)} · ฉบับที่ ${plan.version}</p>
-      </header>
+    <article class="print-document" style="font-family:'TH Sarabun New','THSarabunNew','TH SarabunPSK','Sarabun',sans-serif; color:#000; font-size:16pt; font-weight:normal; line-height:1.2;">
+      ${buildMemoHeaderHtml(`ขออนุญาตส่งแผนการจัดการเรียนรู้ ภาคเรียนที่ ${plan.term_name || '-'}`, submittedThaiFull)}
 
-      <div style="font-size:11.5pt; line-height:1.8; margin-bottom:18px;">
-        <div><strong>รายวิชา:</strong> ${esc(plan.subject_code)} ${esc(plan.subject_name)} &nbsp;&nbsp;&nbsp; <strong>ระดับชั้น:</strong> ${esc(plan.classroom)}</div>
-        <div><strong>กลุ่มสาระการเรียนรู้:</strong> ${esc(plan.group_name || '-')}</div>
-        <div><strong>ครูผู้สอน:</strong> ${esc(plan.teacher_name)}</div>
-        <div><strong>ชื่อหน่วยการเรียนรู้/แผน:</strong> ${esc(plan.unit_title)}</div>
-        <div><strong>จำนวนชั่วโมงสอน:</strong> ${plan.teaching_hours || 0} ชั่วโมง &nbsp;&nbsp;&nbsp; <strong>รอบการส่ง:</strong> ${esc(plan.round_title)}</div>
-        <div><strong>สถานะการตรวจสอบ:</strong> ${esc(plan.status_label)} &nbsp;&nbsp;&nbsp; <strong>วันที่ส่ง:</strong> ${esc(plan.submitted_at)}</div>
+      <!-- เนื้อหาบันทึกข้อความ (ฟอนต์ TH Sarabun New 16pt ตัวปกติ ย่อหน้า 2.5 ซม.) -->
+      <div style="font-size:16pt; font-weight:normal; text-align:left;">
+        <p style="text-indent:2.5cm; margin:0 0 6px 0;">
+          ด้วยข้าพเจ้า ${esc(plan.teacher_name)} ตำแหน่ง ครูผู้สอน กลุ่มสาระการเรียนรู้${esc(plan.group_name || '-')}
+          ได้จัดทำแผนการจัดการเรียนรู้ รายวิชา ${esc(plan.subject_code)} ${esc(plan.subject_name)}
+          ระดับชั้น ${esc(plan.classroom)} เรื่อง ${esc(plan.unit_title)}
+          จำนวน ${plan.teaching_hours || 0} ชั่วโมง (ฉบับที่ ${plan.version || 1} รอบการส่ง ${esc(plan.round_title)}) เสร็จสิ้นเรียบร้อยแล้ว
+        </p>
+        <p style="text-indent:2.5cm; margin:0 0 14px 0;">
+          จึงเรียนมาเพื่อโปรดพิจารณาอนุญาตให้นำแผนการจัดการเรียนรู้ดังกล่าวไปใช้ในการจัดกิจกรรมการเรียนรู้ต่อไป
+        </p>
       </div>
 
-      <div class="print-section-title">ผลการตรวจสอบและการประเมิน</div>
-      <table class="print-table" style="margin-top:8px;">
-        <thead>
-          <tr>
-            <th style="width:140px;">ขั้นตอนการตรวจ</th>
-            <th style="width:180px;">ผู้ตรวจ</th>
-            <th>ความคิดเห็นและข้อเสนอแนะ</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td style="text-align:center;">หัวหน้ากลุ่มสาระการเรียนรู้</td>
-            <td>${esc(plan.reviewer_name)}</td>
-            <td>${esc(plan.latest_review_note) || 'เห็นควรอนุมัติให้ใช้จัดการเรียนรู้ได้'}</td>
-          </tr>
-          <tr>
-            <td style="text-align:center;">ฝ่ายวิชาการ / ผู้อำนวยการ</td>
-            <td>ผู้อำนวยการโรงเรียนบ้านห้วยตาด</td>
-            <td>อนุมัติให้ใช้ในการจัดการเรียนรู้ตามหลักสูตรสถานศึกษา</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div class="print-signature-section" style="margin-top:40px;">
-        <div class="print-signature-box">
-          <p>ลงชื่อ ................................................................ ผู้สอน</p>
-          <p>( ${esc(plan.teacher_name)} )</p>
-          <p>ตำแหน่ง ครูผู้สอน</p>
-        </div>
-        <div class="print-signature-box">
-          <p>ลงชื่อ ................................................................ ผู้ตรวจรับรอง</p>
-          <p>( ................................................................ )</p>
-          <p>หัวหน้ากลุ่มสาระการเรียนรู้ / ฝ่ายวิชาการ</p>
+      <!-- ลงชื่อผู้เสนอ (ครูผู้สอน) เริ่มกึ่งกลางหน้ากระดาษตรงกับ วันที่ -->
+      <div style="display:flex; justify-content:flex-end; margin:24px 0 22px 0; font-size:16pt; font-weight:normal;">
+        <div style="width:50%; text-align:center; line-height:1.25;">
+          <div>ลงชื่อ ...................................................</div>
+          <div>(${esc(plan.teacher_name)})</div>
+          <div>ตำแหน่ง ครูผู้สอน</div>
         </div>
       </div>
 
-      <footer class="print-meta-footer" style="margin-top:50px;">
-        <div>พิมพ์จากระบบ Huaytad Lesson Plan · โรงเรียนบ้านห้วยตาด (${todayDateStr})</div>
-        <div>หน้า 1 จาก 1</div>
-      </footer>
+      <!-- ส่วนความเห็นและคำสั่ง (2 ระดับ - ฟอนต์ 16pt ตัวปกติ) -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; padding-top:10px; font-size:16pt; font-weight:normal; line-height:1.2; page-break-inside:avoid;">
+        <div style="display:flex; flex-direction:column; justify-content:space-between; border:1px solid #64748b; border-radius:4px; padding:6px 10px;">
+          <div>
+            <div style="font-weight:bold; margin-bottom:2px;">ความเห็นหัวหน้ากลุ่มสาระฯ / ฝ่ายวิชาการ</div>
+            <div>${chkBox(isHeadChecked)} เห็นควรอนุญาตให้ใช้จัดการเรียนรู้</div>
+            <div style="margin:2px 0 6px 0;">
+              <strong>ความเห็น:</strong> ${reviewNoteText}
+            </div>
+          </div>
+          <div style="text-align:center; margin-top:4px;">
+            <div>ลงชื่อ ...............................................</div>
+            <div>(${esc(plan.reviewer_name)})</div>
+            <div>ผู้ตรวจประจำวิชา / ฝ่ายวิชาการ</div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; justify-content:space-between; border:1px solid #64748b; border-radius:4px; padding:6px 10px;">
+          <div>
+            <div style="font-weight:bold; margin-bottom:2px;">คำสั่ง / การพิจารณาของผู้อำนวยการ</div>
+            <div>${chkBox(isApproved)} อนุญาต / อนุมัติให้ใช้จัดการเรียนรู้</div>
+            <div style="margin:2px 0 6px 0;">${chkBox(plan.status === 'Revise')} ปรับปรุงแก้ไข</div>
+          </div>
+          <div style="text-align:center; margin-top:4px;">
+            <div>ลงชื่อ ...............................................</div>
+            <div>(${esc(directorName) || '...............................................'})</div>
+            <div>ผู้อำนวยการโรงเรียนบ้านห้วยตาด</div>
+          </div>
+        </div>
+      </div>
     </article>
   `;
 
   const printArea = document.getElementById('printable-area');
   printArea.innerHTML = printHtml;
-  window.print();
+  triggerMemoPrint(printArea);
+}
+
+/**
+ * สร้าง HTML แบบบันทึกหลังการจัดการเรียนรู้ (A4 มาตรฐานโรงเรียนบ้านห้วยตาด K-P-A)
+ */
+function renderReflectionPrintHtml(rf) {
+  const logoUrl = new URL('../img/logo-ht.png', document.baseURI).href;
+  const kpa = parseReflectionOutcomes(rf.outcomes);
+  const directorName = (state.reportsData && state.reportsData.directorName) || state.directorName || '';
+  const lineBlock = (text, minLines = 2) => {
+    const val = esc(text || '');
+    const lh = 25;
+    const ruleRows = Array.from({ length: 24 }, () =>
+      `<div style="height:${lh}px; box-sizing:border-box; border-bottom:1px dotted #000;"></div>`
+    ).join('');
+    return `
+      <div style="position:relative; min-height:${minLines * lh}px;">
+        <div style="position:absolute; inset:0; overflow:hidden; pointer-events:none;">${ruleRows}</div>
+        <div style="position:relative; z-index:1; padding:0 6px; line-height:${lh}px; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;">${val || '&nbsp;'}</div>
+      </div>
+    `;
+  };
+
+  const rawUnit = String(rf.unit_title || '').trim();
+  const rawLesson = String(rf.lesson_title || '').trim();
+  const um = rawUnit.match(/^หน่วย(?:การเรียนรู้)?ที่\s*(\d+)[\s:：\-]*(.*)$/);
+  const lm = rawLesson.match(/^แผน(?:การจัดการเรียนรู้)?ที่\s*(\d+)[\s:：\-]*(.*)$/);
+  const unitNoTxt = um ? um[1] : '';
+  const unitNameTxt = um ? ((um[2] || '').replace(/^หน่วย(?:การเรียนรู้)?ที่\s*\d+[\s:：\-]*/, '').trim() || '-') : (rawUnit || '-');
+  const lessonNoTxt = lm ? lm[1] : '';
+  const lessonNameTxt = lm ? ((lm[2] || '').replace(/^แผน(?:การจัดการเรียนรู้)?ที่\s*\d+[\s:：\-]*/, '').trim() || '-') : (rawLesson || '-');
+
+  return `
+    <article class="print-document" style="font-family:'TH Sarabun New','THSarabunNew','TH SarabunPSK','Sarabun',sans-serif; color:#000; font-size:16pt; font-weight:normal; line-height:1.25;">
+      <div style="text-align:center; margin-bottom:4px;">
+        <img class="print-doc-logo" src="${logoUrl}" alt="ตราโรงเรียนบ้านห้วยตาด" style="height:1.6cm; width:auto; display:inline-block; margin-bottom:2px;" onerror="this.style.display='none'">
+        <div style="font-size:18pt; font-weight:bold; line-height:1.15;">
+          บันทึกหลังการจัดการเรียนรู้ &nbsp;รายวิชา ${esc(rf.subject_code)} ${esc(rf.subject_name)}
+        </div>
+      </div>
+
+      <div style="font-size:16pt; margin-bottom:8px;">
+        <div style="display:flex; align-items:baseline; gap:10px;">
+          ${lm ? `
+            <div style="flex:none; display:flex; align-items:baseline;">
+              <span style="flex:none;">แผนจัดการเรียนรู้ที่</span>
+              <span style="min-width:34px; border-bottom:1px dotted #000; text-align:center; line-height:1.15;">${esc(lessonNoTxt)}</span>
+            </div>
+            <div style="flex:1; display:flex; align-items:baseline;">
+              <span style="flex:none;">เรื่อง</span>
+              <span style="flex:1; border-bottom:1px dotted #000; padding-left:6px; line-height:1.15;">${esc(lessonNameTxt)}</span>
+            </div>
+          ` : `
+            <div style="flex:1; display:flex; align-items:baseline;">
+              <span style="flex:none;">แผนจัดการเรียนรู้ที่ / เรื่อง</span>
+              <span style="flex:1; border-bottom:1px dotted #000; padding-left:6px; line-height:1.15;">${esc(lessonNameTxt)}</span>
+            </div>
+          `}
+          <div style="flex:none;">วันที่สอน ${formatDate(rf.taught_date)}</div>
+        </div>
+        <div style="display:flex; align-items:baseline; gap:10px; margin-top:2px;">
+          ${um ? `
+            <div style="flex:none; display:flex; align-items:baseline;">
+              <span style="flex:none;">หน่วยการเรียนรู้ที่</span>
+              <span style="min-width:34px; border-bottom:1px dotted #000; text-align:center; line-height:1.15;">${esc(unitNoTxt)}</span>
+            </div>
+            <div style="flex:1; display:flex; align-items:baseline;">
+              <span style="flex:none;">เรื่อง</span>
+              <span style="flex:1; border-bottom:1px dotted #000; padding-left:6px; line-height:1.15;">${esc(unitNameTxt)}</span>
+            </div>
+          ` : `
+            <div style="flex:1; display:flex; align-items:baseline;">
+              <span style="flex:none;">หน่วยการเรียนรู้ที่ / เรื่อง</span>
+              <span style="flex:1; border-bottom:1px dotted #000; padding-left:6px; line-height:1.15;">${esc(unitNameTxt)}</span>
+            </div>
+          `}
+        </div>
+        <div style="display:flex; align-items:baseline; gap:16px; margin-top:2px;">
+          <div style="flex:1; display:flex; align-items:baseline;">
+            <span style="flex:none;">กลุ่มสาระการเรียนรู้</span>
+            <span style="flex:1; border-bottom:1px dotted #000; padding-left:6px; line-height:1.15;">${esc(rf.group_name || '-')}</span>
+          </div>
+          <div style="flex:none; min-width:130px; display:flex; align-items:baseline;">
+            <span style="flex:none;">ชั้น</span>
+            <span style="flex:1; border-bottom:1px dotted #000; padding-left:6px; text-align:center; line-height:1.15;">${esc(rf.classroom || '-')}</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <div style="font-weight:bold;">1. ผลที่เกิดกับผู้เรียน
+          <span style="font-weight:normal; font-size:14.5pt;">(นักเรียนทั้งหมด ${rf.total_students || 0} คน · มาเรียน ${rf.present_students || 0} คน · บรรลุเป้าหมาย ${rf.achieved_students || 0} คน คิดเป็นร้อยละ ${rf.achievement_percentage || 0}%)</span>
+        </div>
+        <div style="padding-left:18px; margin-top:2px;">
+          <div>1.1 ด้านความรู้ K (Knowledge)</div>
+          ${lineBlock(kpa.k, 2)}
+        </div>
+        <div style="padding-left:18px; margin-top:4px;">
+          <div>1.2 ด้านทักษะ/กระบวนการ/กระบวนการคิด P (Practice)</div>
+          ${lineBlock(kpa.p, 2)}
+        </div>
+        <div style="padding-left:18px; margin-top:4px;">
+          <div>1.3 ด้านเจตคติ/คุณลักษณะอันพึงประสงค์ A (Attribute)</div>
+          ${lineBlock(kpa.a, 2)}
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <div style="font-weight:bold;">2. ปัญหา/อุปสรรคที่พบจากการจัดการเรียนรู้</div>
+        ${lineBlock(rf.problems || 'ไม่มี', 2)}
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <div style="font-weight:bold;">3. ข้อเสนอแนะ / แนวทางแก้ไข</div>
+        ${lineBlock(rf.solutions || '-', 2)}
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; margin:28px 0 12px 0; font-size:16pt; break-inside:avoid; page-break-inside:avoid;">
+        <div style="width:52%; text-align:center; line-height:1.25;">
+          <div>ลงชื่อ ............................................. ครูผู้สอน</div>
+          <div>(${esc(rf.teacher_name)})</div>
+          <div>ตำแหน่ง ครูผู้สอน</div>
+        </div>
+      </div>
+
+      <div style="break-inside:avoid; page-break-inside:avoid;">
+        <div style="margin-bottom:10px;">
+          <div style="font-weight:bold;">บันทึกติดตามผลของผู้อำนวยการโรงเรียน</div>
+          <div style="border-bottom:1px dotted #000; height:24px;">&nbsp;</div>
+          <div style="border-bottom:1px dotted #000; height:24px;">&nbsp;</div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; margin-top:28px; font-size:16pt;">
+          <div style="width:52%; text-align:center; line-height:1.25;">
+            <div>ลงชื่อ ............................................. ผู้บริหาร</div>
+            <div>(${esc(directorName) || '.............................................'})</div>
+            <div>ตำแหน่ง ผู้อำนวยการโรงเรียนบ้านห้วยตาด</div>
+          </div>
+        </div>
+      </div>
+    </article>
+  `;
 }
 
 /**
@@ -2830,88 +3716,12 @@ function printReflectionSheet(reflectionId) {
     return;
   }
 
-  const todayDateStr = formatDate(new Date().toISOString());
-
-  const printHtml = `
-    <article class="print-document">
-      <header class="print-header">
-        <h1>โรงเรียนบ้านห้วยตาด</h1>
-        <h2>แบบบันทึกหลังการจัดกิจกรรมการเรียนรู้</h2>
-        <p>กลุ่มสาระการเรียนรู้ ${esc(rf.group_name || '-')} · โรงเรียนบ้านห้วยตาด</p>
-      </header>
-
-      <div style="font-size:11.5pt; line-height:1.75; margin-bottom:14px;">
-        <div><strong>รายวิชา:</strong> ${esc(rf.subject_code)} ${esc(rf.subject_name)} &nbsp;&nbsp;&nbsp; <strong>ระดับชั้น:</strong> ${esc(rf.classroom)}</div>
-        <div><strong>ชื่อหน่วยการเรียนรู้:</strong> ${esc(rf.unit_title)}</div>
-        <div><strong>ครูผู้สอน:</strong> ${esc(rf.teacher_name)} &nbsp;&nbsp;&nbsp; <strong>วันที่ทำการสอน:</strong> ${formatDate(rf.taught_date)}</div>
-      </div>
-
-      <div class="print-section-title">1. สถิติจำนวนนักเรียนและการบรรลุจุดประสงค์การเรียนรู้</div>
-      <table class="print-table" style="text-align:center;">
-        <thead>
-          <tr>
-            <th>นักเรียนทั้งหมด (คน)</th>
-            <th>มาเรียน (คน)</th>
-            <th>ขาดเรียน (คน)</th>
-            <th>บรรลุจุดประสงค์ (คน)</th>
-            <th>คิดเป็นร้อยละ (%)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>${rf.total_students}</td>
-            <td>${rf.present_students}</td>
-            <td>${Math.max(0, rf.total_students - rf.present_students)}</td>
-            <td><strong>${rf.achieved_students}</strong></td>
-            <td><strong style="font-size:11pt;">${rf.achievement_percentage}%</strong></td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div class="print-section-title">2. ผลการจัดกิจกรรมการเรียนรู้</div>
-      <div style="font-size:11pt; padding:6px 10px; border:1px solid #000; min-height:60px; line-height:1.6; white-space:pre-wrap; margin-bottom:12px;">
-        ${esc(rf.outcomes) || 'ไม่มีการระบุ'}
-      </div>
-
-      <div class="print-section-title">3. ปัญหาและอุปสรรค</div>
-      <div style="font-size:11pt; padding:6px 10px; border:1px solid #000; min-height:50px; line-height:1.6; white-space:pre-wrap; margin-bottom:12px;">
-        ${esc(rf.problems) || 'ไม่มีปัญหาและอุปสรรคในการจัดกิจกรรมการเรียนรู้'}
-      </div>
-
-      <div class="print-section-title">4. ข้อเสนอแนะและแนวทางแก้ไข / พัฒนา</div>
-      <div style="font-size:11pt; padding:6px 10px; border:1px solid #000; min-height:50px; line-height:1.6; white-space:pre-wrap; margin-bottom:20px;">
-        ${esc(rf.solutions) || 'ไม่มีการระบุ'}
-      </div>
-
-      <div class="print-signature-section" style="margin-top:30px;">
-        <div class="print-signature-box">
-          <p>ลงชื่อ ................................................................ ผู้สอน</p>
-          <p>( ${esc(rf.teacher_name)} )</p>
-          <p>ตำแหน่ง ครูผู้สอน</p>
-        </div>
-        <div class="print-signature-box">
-          <p>ลงชื่อ ................................................................ ผู้รับทราบ</p>
-          <p>( ................................................................ )</p>
-          <p>หัวหน้ากลุ่มสาระการเรียนรู้ / หัวหน้าฝ่ายวิชาการ</p>
-        </div>
-      </div>
-
-      <footer class="print-meta-footer" style="margin-top:35px;">
-        <div>พิมพ์จากระบบ Huaytad Lesson Plan · โรงเรียนบ้านห้วยตาด (${todayDateStr})</div>
-        <div>หน้า 1 จาก 1</div>
-      </footer>
-    </article>
-  `;
-
   const printArea = document.getElementById('printable-area');
-  printArea.innerHTML = printHtml;
-  window.print();
+  printArea.innerHTML = renderReflectionPrintHtml(rf);
+  triggerMemoPrint(printArea);
 }
 
-/**
- * พิมพ์แบบบันทึกหลังสอนโดยตรงจากหน้าต่างรายการ (Modal)
- */
-function printReflectionDirect(ref, planId, unitTitle) {
+function buildReflectionPrintPayload(ref, planId, unitTitle) {
   let load = null;
   if (state.loads) {
     for (const l of state.loads) {
@@ -2921,14 +3731,14 @@ function printReflectionDirect(ref, planId, unitTitle) {
       }
     }
   }
-
-  const rf = {
+  return {
     reflection_id: ref.reflection_id,
     group_name: load ? load.group_name : '',
     subject_code: load ? load.subject_code : '',
     subject_name: load ? load.subject_name : '',
     classroom: load ? load.classroom : '',
     unit_title: unitTitle,
+    lesson_title: ref.lesson_title || '',
     teacher_name: state.teacher ? state.teacher.fullName : 'ครูผู้สอน',
     taught_date: ref.teach_date,
     total_students: ref.total_students,
@@ -2939,81 +3749,44 @@ function printReflectionDirect(ref, planId, unitTitle) {
     problems: ref.problems,
     solutions: ref.solutions
   };
+}
 
-  const todayDateStr = formatDate(new Date().toISOString());
+/**
+ * พิมพ์แบบบันทึกหลังสอนโดยตรงจากหน้าต่างรายการ (Modal)
+ */
+function printReflectionDirect(ref, planId, unitTitle) {
+  const rf = buildReflectionPrintPayload(ref, planId, unitTitle);
+  const printArea = document.getElementById('printable-area');
+  printArea.innerHTML = renderReflectionPrintHtml(rf);
+  triggerMemoPrint(printArea);
+}
 
-  const printHtml = `
-    <article class="print-document">
-      <header class="print-header">
-        <h1>โรงเรียนบ้านห้วยตาด</h1>
-        <h2>แบบบันทึกหลังการจัดกิจกรรมการเรียนรู้</h2>
-        <p>กลุ่มสาระการเรียนรู้ ${esc(rf.group_name || '-')} · โรงเรียนบ้านห้วยตาด</p>
-      </header>
+/**
+ * พิมพ์แบบบันทึกหลังสอนทั้งหมดในหน่วยการเรียนรู้ (เรียงจากแผนแรกไปล่าสุด แยกหน้าละ 1 แผน A4)
+ */
+function printAllPlanReflections() {
+  const modalData = state.currentModalReflections;
+  if (!modalData || !Array.isArray(modalData.list) || modalData.list.length === 0) {
+    Swal.fire({ icon: 'warning', title: 'ไม่พบข้อมูล', text: 'ไม่มีรายการบันทึกหลังสอนสำหรับพิมพ์' });
+    return;
+  }
 
-      <div style="font-size:11.5pt; line-height:1.75; margin-bottom:14px;">
-        <div><strong>รายวิชา:</strong> ${esc(rf.subject_code)} ${esc(rf.subject_name)} &nbsp;&nbsp;&nbsp; <strong>ระดับชั้น:</strong> ${esc(rf.classroom)}</div>
-        <div><strong>ชื่อหน่วยการเรียนรู้:</strong> ${esc(rf.unit_title)}</div>
-        <div><strong>ครูผู้สอน:</strong> ${esc(rf.teacher_name)} &nbsp;&nbsp;&nbsp; <strong>วันที่ทำการสอน:</strong> ${formatDate(rf.taught_date)}</div>
-      </div>
+  const ordered = modalData.list.slice().sort((a, b) => {
+    const da = String(a.teach_date || '');
+    const db = String(b.teach_date || '');
+    if (da !== db) return da.localeCompare(db);
+    return String(a.lesson_title || '').localeCompare(String(b.lesson_title || ''), 'th');
+  });
 
-      <div class="print-section-title">1. สถิติจำนวนนักเรียนและการบรรลุจุดประสงค์การเรียนรู้</div>
-      <table class="print-table" style="text-align:center;">
-        <thead>
-          <tr>
-            <th>นักเรียนทั้งหมด (คน)</th>
-            <th>มาเรียน (คน)</th>
-            <th>ขาดเรียน (คน)</th>
-            <th>บรรลุจุดประสงค์ (คน)</th>
-            <th>คิดเป็นร้อยละ (%)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>${rf.total_students}</td>
-            <td>${rf.present_students}</td>
-            <td>${Math.max(0, rf.total_students - rf.present_students)}</td>
-            <td><strong>${rf.achieved_students}</strong></td>
-            <td><strong style="font-size:11pt;">${rf.achievement_percentage}%</strong></td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div class="print-section-title">2. ผลการจัดกิจกรรมการเรียนรู้</div>
-      <div style="font-size:11pt; padding:6px 10px; border:1px solid #000; min-height:60px; line-height:1.6; white-space:pre-wrap; margin-bottom:12px;">
-        ${esc(rf.outcomes) || 'ไม่มีการระบุ'}
-      </div>
-
-      <div class="print-section-title">3. ปัญหาและอุปสรรค</div>
-      <div style="font-size:11pt; padding:6px 10px; border:1px solid #000; min-height:50px; line-height:1.6; white-space:pre-wrap; margin-bottom:12px;">
-        ${esc(rf.problems) || 'ไม่มีปัญหาและอุปสรรคในการจัดกิจกรรมการเรียนรู้'}
-      </div>
-
-      <div class="print-section-title">4. ข้อเสนอแนะและแนวทางแก้ไข / พัฒนา</div>
-      <div style="font-size:11pt; padding:6px 10px; border:1px solid #000; min-height:50px; line-height:1.6; white-space:pre-wrap; margin-bottom:20px;">
-        ${esc(rf.solutions) || 'ไม่มีการระบุ'}
-      </div>
-
-      <div class="print-signature-section" style="margin-top:30px;">
-        <div class="print-signature-box">
-          <p>ลงชื่อ ................................................................ ผู้สอน</p>
-          <p>( ${esc(rf.teacher_name)} )</p>
-          <p>ตำแหน่ง ครูผู้สอน</p>
-        </div>
-        <div class="print-signature-box">
-          <p>ลงชื่อ ................................................................ ผู้รับทราบ</p>
-          <p>( ................................................................ )</p>
-          <p>หัวหน้ากลุ่มสาระการเรียนรู้ / หัวหน้าฝ่ายวิชาการ</p>
-        </div>
-      </div>
-
-      <footer class="print-meta-footer" style="margin-top:35px;">
-        <div>พิมพ์จากระบบ Huaytad Lesson Plan · โรงเรียนบ้านห้วยตาด (${todayDateStr})</div>
-        <div>หน้า 1 จาก 1</div>
-      </footer>
-    </article>
-  `;
+  const combinedHtml = ordered.map((ref, idx) => {
+    const rf = buildReflectionPrintPayload(ref, modalData.planId, modalData.unitTitle);
+    const pageHtml = renderReflectionPrintHtml(rf);
+    return idx < ordered.length - 1
+      ? `<div style="break-after:page; page-break-after:always;">${pageHtml}</div>`
+      : pageHtml;
+  }).join('');
 
   const printArea = document.getElementById('printable-area');
-  printArea.innerHTML = printHtml;
-  window.print();
+  printArea.innerHTML = combinedHtml;
+  triggerMemoPrint(printArea);
 }

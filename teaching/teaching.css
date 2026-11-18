@@ -5,6 +5,22 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap');
 
+/* TH Sarabun New — ไฟล์ฟอนต์อยู่ในโปรเจกต์ (/fonts) เพื่อให้เอกสารราชการพิมพ์ได้ตรงฟอนต์ทุกเครื่อง */
+@font-face {
+  font-family: 'TH Sarabun New';
+  src: url('../fonts/THSarabunNew.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: 'TH Sarabun New';
+  src: url('../fonts/THSarabunNew-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: block;
+}
+
 :root {
   --primary: #1e3a8a;       /* Navy */
   --primary-light: #2563eb; /* Blue */
@@ -34,6 +50,12 @@
   padding: 0;
   font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* เอกสารพิมพ์ทางราชการ: บังคับทุก element ภายในให้ใช้ TH Sarabun New (กันกฎ * ด้านบนทับ) */
+.print-document,
+.print-document * {
+  font-family: 'TH Sarabun New', 'THSarabunNew', 'TH SarabunPSK', sans-serif !important;
 }
 
 body {
@@ -749,16 +771,172 @@ input.filter-select {
 }
 
 /* ==========================================================================
+   Thai Buddhist Calendar Popover (ปฏิทิน พ.ศ.)
+   ========================================================================== */
+.thai-cal-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #0f172a;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.thai-cal-trigger:hover {
+  border-color: #93c5fd;
+}
+.thai-cal-trigger:focus {
+  outline: none;
+  border-color: var(--primary-light);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+.thai-cal-popup {
+  position: fixed;
+  z-index: 999999;
+  width: 296px;
+  max-width: calc(100vw - 16px);
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
+  padding: 12px;
+  user-select: none;
+}
+.thai-cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.thai-cal-nav-btn {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #334155;
+  font-weight: 700;
+}
+.thai-cal-nav-btn:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1e3a8a;
+}
+.thai-cal-selects {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+.thai-cal-selects select {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 4px 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e3a8a;
+  background: #f8fafc;
+  cursor: pointer;
+}
+.thai-cal-weekdays,
+.thai-cal-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+}
+.thai-cal-weekdays span {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #64748b;
+  padding: 4px 0;
+}
+.thai-cal-weekdays span:first-child,
+.thai-cal-weekdays span:last-child {
+  color: #dc2626;
+}
+.thai-cal-day {
+  height: 34px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #0f172a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.thai-cal-day:hover:not(:disabled) {
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+.thai-cal-day.is-weekend {
+  color: #dc2626;
+}
+.thai-cal-day.is-today {
+  border: 1.5px solid #2563eb;
+  font-weight: 700;
+}
+.thai-cal-day.is-selected {
+  background: #1e3a8a !important;
+  color: #ffffff !important;
+  font-weight: 700;
+}
+.thai-cal-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+}
+.thai-cal-foot-btn {
+  border: none;
+  background: #f1f5f9;
+  color: #334155;
+  padding: 5px 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.thai-cal-foot-btn:hover {
+  background: #e2e8f0;
+}
+.thai-cal-foot-btn.primary {
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+.thai-cal-foot-btn.primary:hover {
+  background: #dbeafe;
+}
+
+/* ==========================================================================
    Print Layout Styles (@media print) for A4 Paper
    ========================================================================== */
 
 @media print {
   @page {
     size: A4 portrait;
-    margin: 12mm 15mm;
+    margin: 12mm 20mm 12mm 25mm;
   }
 
+  html,
   body {
+    height: auto !important;
+    min-height: 0 !important;
     background: #ffffff !important;
     color: #000000 !important;
     padding: 0 !important;
@@ -767,6 +945,7 @@ input.filter-select {
 
   /* ซ่อนองค์ประกอบ UI ของเว็บทั้งหมดเวลาพิมพ์ */
   .top-bar, 
+  .main-container,
   .user-card, 
   .tabs-nav, 
   .modal-backdrop, 
@@ -777,6 +956,7 @@ input.filter-select {
   .metrics-grid, 
   .no-print, 
   #tab-content, 
+  #modal-root,
   #loader-overlay {
     display: none !important;
   }
@@ -790,10 +970,10 @@ input.filter-select {
   }
 
   .print-document {
-    font-family: 'Sarabun', sans-serif !important;
+    font-family: 'TH Sarabun New', 'THSarabunNew', 'TH SarabunPSK', 'Sarabun', sans-serif !important;
     color: #000000 !important;
     background: #ffffff !important;
-    line-height: 1.45;
+    line-height: 1.35;
   }
 
   .print-header {

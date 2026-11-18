@@ -751,8 +751,12 @@ function renderTeacher(quotas, history) {
           <!-- Header -->
           <div style="background:url('../img/BG_User.png') center/cover no-repeat;padding:18px 16px 56px;position:relative;overflow:hidden;color:#fff">
             <div style="position:absolute;inset:0;background:rgba(15,40,100,0.35)"></div>
-            <!-- Header top-right: home + bell + logout -->
+            <!-- Header top-right: admin (if Admin) + home + bell + logout -->
             <div style="display:flex;justify-content:flex-end;gap:8px;position:relative;z-index:2;margin-bottom:14px">
+              ${u.role === 'Admin' ? `
+              <div onclick="openAdminConsole()" title="ตั้งค่าผู้ดูแลระบบ (Admin)" style="width:38px;height:38px;border-radius:50%;background:rgba(15,23,42,0.85);display:flex;align-items:center;justify-content:center;cursor:pointer;color:#38bdf8;box-shadow:0 2px 8px rgba(0,0,0,0.2)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${NGEAR_PATH}</svg>
+              </div>` : ''}
               <a href="../index.html" class="ht-home-btn" title="กลับหน้าหลักโรงเรียน (4 ฝ่าย)" style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.95);display:flex;align-items:center;justify-content:center;color:#1d4ed8;box-shadow:0 2px 8px rgba(0,0,0,0.12);text-decoration:none">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${HOME_PATH}</svg>
               </a>
