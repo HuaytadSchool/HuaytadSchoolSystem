@@ -334,7 +334,7 @@ function renderAdmin() {
 
   // ---- TAB 2: ตั้งค่าระบบ & เอกสาร ----
   const steps = (s.settings && s.settings.approval_steps) ? s.settings.approval_steps : 2;
-  let modCfg = { leave: 'active', teaching: 'active', note: '' };
+  let modCfg = { leave: 'active', teaching: 'active', substitute: 'active', note: '' };
   if (s.settings && s.settings.module_statuses) {
     try {
       modCfg = typeof s.settings.module_statuses === 'string'
@@ -373,6 +373,17 @@ function renderAdmin() {
             ${modOpt(modCfg.teaching, 'active', 'เปิดใช้งาน')}
             ${modOpt(modCfg.teaching, 'maintenance', 'ปิดปรับปรุง')}
             ${modOpt(modCfg.teaching, 'disabled', 'ปิดการใช้งาน')}
+          </select>
+        </div>
+        <div style="border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <div>
+            <div style="font-size:13.5px;font-weight:700">ระบบจัดสอนแทน</div>
+            <div style="font-size:11.5px;color:#64748b">ฝ่ายบริหารวิชาการ (เฉพาะวิชาการ/Admin)</div>
+          </div>
+          <select id="mod-substitute-status" class="dc-input" style="width:auto;min-width:135px;padding:7px 10px">
+            ${modOpt(modCfg.substitute, 'active', 'เปิดใช้งาน')}
+            ${modOpt(modCfg.substitute, 'maintenance', 'ปิดปรับปรุง')}
+            ${modOpt(modCfg.substitute, 'disabled', 'ปิดการใช้งาน')}
           </select>
         </div>
       </div>
@@ -625,6 +636,7 @@ window.saveModuleSettings = async () => {
   const module_statuses = {
     leave: document.getElementById('mod-leave-status').value,
     teaching: document.getElementById('mod-teaching-status').value,
+    substitute: document.getElementById('mod-substitute-status').value,
     note: document.getElementById('mod-maint-note').value.trim()
   };
   showLoader(true);

@@ -3,7 +3,8 @@
 // ===========================================================================
 
 const PORTAL_LIFF_ID = '2010662195-iJjI0NIA';
-const PORTAL_GAS_URL = 'https://script.google.com/macros/s/AKfycbwauu8fcgkbX0duHiyNtpZQzWLZuBreA5JF5tBeO3Fi3n6L5alTGrMaixt2GtLK2xFOSQ/exec';
+const PORTAL_GAS_URL = 'https://script.google.com/macros/s/AKfycbyPIjA7ekUpAoBhs_VA-HWw3HFeU-7JHGXe44iy7hRq-QoWU57X68SzuLGNAc56M1PRCw/exec';
+const TEACHING_GAS_URL = 'https://script.google.com/macros/s/AKfycbx5ogiJsGcGKpcFrNrbwq2r_gp58ljcffJaO4KLN2nzmoWoySKm4FRCFj0Kda7jjCe1mQ/exec';
 
 const ROLE_LABELS = {
   Teacher: 'ครูผู้สอน',
@@ -14,7 +15,10 @@ const ROLE_LABELS = {
 
 let portalUser = null;
 let portalLineProfile = null;
-let moduleStatuses = { leave: 'active', teaching: 'active', note: '' };
+let moduleStatuses = { leave: 'active', teaching: 'active', substitute: 'active', note: '' };
+let academicTeacherIds = [];
+let hasAcademicIdsFromPortal = false;
+let canManageAcademicFallback = false;
 let toastTimer = null;
 
 async function portalApi(action, ...args) {
@@ -73,6 +77,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (user && user.status === 'Active') {
         portalUser = user;
+        if (!hasAcademicIdsFromPortal && user.role !== 'Admin') {
+          try {
+            const tRes = await fetch(TEACHING_GAS_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify({ action: 'getTeachingBootstrap', args: [portalLineProfile.userId] })
+            });
+            const tJson = JSON.parse(await tRes.text());
+            if (tJson && tJson.success && tJson.data) {
+              canManageAcademicFallback = Boolean(tJson.data.canManage);
+            }
+          } catch (e) {}
+        }
         showPortal();
       } else {
         // ยังไม่ได้ลงทะเบียน / รออนุมัติ -> ส่งไปหน้าลงทะเบียนใน leave/index.html
@@ -105,6 +122,22 @@ function applySettings(settings) {
         : settings.module_statuses;
     } catch (e) {}
   }
+  if (settings && settings.academic_teacher_ids !== undefined) {
+    hasAcademicIdsFromPortal = true;
+    academicTeacherIds = String(settings.academic_teacher_ids || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+  }
+}
+
+function canAccessSubstituteModule() {
+  if (!portalUser || portalUser.status !== 'Active') return false;
+  if (portalUser.role === 'Admin' || portalUser.role === 'Academic') return true;
+  if (hasAcademicIdsFromPortal) {
+    return academicTeacherIds.includes(String(portalUser.id || '').trim());
+  }
+  return canManageAcademicFallback;
 }
 
 window.handlePortalLogin = () => {
@@ -155,6 +188,11 @@ function renderPortalUser() {
   else if (moduleStatuses.teaching === 'disabled') { tb.textContent = 'ปิดใช้งาน'; tb.className = 'card-badge badge-soon'; }
   else { tb.textContent = 'พร้อมใช้'; tb.className = 'card-badge badge-ready'; }
 
+  const acCount = document.getElementById('academic-app-count');
+  if (acCount) {
+    acCount.textContent = canAccessSubstituteModule() ? '2 โปรแกรม' : '1 โปรแกรม';
+  }
+
   document.getElementById('admin-section').style.display = portalUser.role === 'Admin' ? 'flex' : 'none';
 }
 
@@ -193,6 +231,16 @@ const DEPT_APPS = {
         ready: true,
         bg: 'linear-gradient(145deg,#ecfdf5,#d1fae5)',
         icon: '<svg width="34" height="34" viewBox="0 0 48 48" fill="none"><path d="M8 12c0-2.2 1.8-4 4-4h10c1.1 0 2 .9 2 2v28c-2-1.5-4.5-2-7-2H10c-1.1 0-2-.9-2-2V12z" fill="#10b981"/><path d="M40 12c0-2.2-1.8-4-4-4H26c-1.1 0-2 .9-2 2v28c2-1.5 4.5-2 7-2h7c1.1 0 2-.9 2-2V12z" fill="#34d399"/><circle cx="34" cy="33" r="9" fill="#ffffff" stroke="#059669" stroke-width="2"/><path d="M30.5 33l2.2 2.2 4.8-4.7" stroke="#059669" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      },
+      {
+        name: 'ระบบจัดสอนแทน',
+        hint: 'เฉพาะฝ่ายวิชาการ & Admin',
+        href: 'substitute/index.html',
+        modKey: 'substitute',
+        academicAdminOnly: true,
+        ready: true,
+        bg: 'linear-gradient(145deg,#eef2ff,#e0e7ff)',
+        icon: '<svg width="34" height="34" viewBox="0 0 48 48" fill="none"><rect x="7" y="9" width="34" height="30" rx="6" fill="#4f46e5"/><rect x="13" y="15" width="22" height="5" rx="2" fill="#c7d2fe"/><rect x="13" y="24" width="12" height="4" rx="2" fill="#fff"/><circle cx="33" cy="29" r="7" fill="#10b981" stroke="#fff" stroke-width="2"/><path d="M30 29l2 2 4-4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
       },
       {
         name: 'นิเทศการสอน & PLC',
@@ -253,7 +301,8 @@ window.openDepartment = (deptKey) => {
 
   const isAdmin = portalUser && portalUser.role === 'Admin';
   const grid = document.getElementById('dept-apps-grid');
-  grid.innerHTML = dept.apps.map(app => {
+  const visibleApps = dept.apps.filter(app => !(app.academicAdminOnly && !canAccessSubstituteModule()));
+  grid.innerHTML = visibleApps.map(app => {
     const modState = app.modKey ? (moduleStatuses[app.modKey] || 'active') : (app.ready ? 'active' : 'soon');
     if (app.ready && (modState === 'active' || isAdmin)) {
       const badge = modState === 'active' ? 'เปิดใช้งาน' : (modState === 'maintenance' ? 'ปิดปรับปรุง (Admin)' : 'ปิดใช้งาน (Admin)');
