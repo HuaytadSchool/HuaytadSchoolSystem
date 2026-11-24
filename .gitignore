@@ -6,3 +6,8 @@ GAP_ANALYSIS.md
 
 # Local agent/worktree state
 .claude/
+
+# Local development mock server & reference PDFs
+dev-server.js
+local-mock.js
+*.pdf
