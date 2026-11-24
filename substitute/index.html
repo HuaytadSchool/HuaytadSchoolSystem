@@ -2522,7 +2522,7 @@
         <img src="../img/logo-ht.png" onerror="this.src='https://i.postimg.cc/bY9KKd30/logo-ht.png'" alt="Logo">
         <div class="sidebar-brand-text">
           <span class="sidebar-brand-name">โรงเรียนบ้านห้วยตาด</span>
-          <span class="sidebar-brand-sub">สพป.เลย เขต 2</span>
+          <span class="sidebar-brand-sub">สพป.เลย เขต 1</span>
         </div>
       </div>
 
@@ -4039,6 +4039,14 @@
       return display;
     }
 
+    function escapeSafeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
     function formatReasonLabel(reason) {
       if (!reason) return '-';
       if (reason.indexOf('Homeroom_Care') > -1 || reason.indexOf('ครูประจำชั้นดูแล') > -1 || reason.indexOf('ประจำชั้นเรียน') > -1) {
@@ -4050,11 +4058,11 @@
         } else if (act && act !== 'Homeroom_Care' && act !== 'ประจำชั้นเรียน') {
           actText = ' (' + act + ')';
         }
-        return '<span class="badge badge-homeroom" style="font-size:0.75rem;">ประจำชั้นเรียน' + actText + '</span>';
+        return '<span class="badge badge-homeroom" style="font-size:0.75rem;">ประจำชั้นเรียน' + escapeSafeHtml(actText) + '</span>';
       }
 
       var display = translateLeaveType(reason);
-      return '<span class="badge badge-pending" style="font-size:0.75rem;">' + display + '</span>';
+      return '<span class="badge badge-pending" style="font-size:0.75rem;">' + escapeSafeHtml(display) + '</span>';
     }
 
     function formatStatusLabel(status) {
@@ -5971,7 +5979,7 @@
         document.getElementById('eInfoDate').innerText = displayDate || dateKey;
         document.getElementById('eInfoPeriod').innerText = 'คาบ ' + period;
         document.getElementById('eInfoAbsent').innerText = absentName || absentId;
-        document.getElementById('eInfoReason').innerText = formatReasonLabel(type);
+        document.getElementById('eInfoReason').innerHTML = formatReasonLabel(type);
         document.getElementById('eInfoSubject').innerText = subject || '-';
         document.getElementById('eInfoClass').innerText = classLevel || '-';
 
